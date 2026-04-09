@@ -23,6 +23,11 @@ done
 echo "Running migrations..."
 python manage.py migrate --noinput
 
+echo "Loading seeds..."
+if [ -f "/seeds/seed_users_company.sql" ]; then
+    python manage.py dbshell < /seeds/seed_users_company.sql || true
+fi
+
 echo "Starting gunicorn..."
 exec gunicorn manejador_usuarios.wsgi:application \
     --bind 0.0.0.0:8001 \

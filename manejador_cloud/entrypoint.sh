@@ -26,6 +26,11 @@ python manage.py migrate --noinput
 echo "Loading initial data (cloud providers)..."
 python manage.py loaddata resources/fixtures/initial_providers.json 2>/dev/null || true
 
+echo "Loading seeds..."
+if [ -f "/seeds/seed_projects_resources.sql" ]; then
+    python manage.py dbshell < /seeds/seed_projects_resources.sql || true
+fi
+
 echo "Starting gunicorn..."
 exec gunicorn manejador_cloud.wsgi:application \
     --bind 0.0.0.0:8002 \
