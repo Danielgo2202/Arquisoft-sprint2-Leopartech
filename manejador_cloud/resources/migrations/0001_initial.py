@@ -130,7 +130,7 @@ class Migration(migrations.Migration):
             model_name='metricaconsumo',
             index=models.Index(
                 fields=['recurso', 'tipo_metrica', 'periodo_inicio'],
-                name='metricas_recurso_tipo_periodo_idx',
+                name='met_rec_tipo_per_idx',
             ),
         ),
         migrations.AddIndex(

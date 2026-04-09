@@ -144,7 +144,7 @@ class MetricaConsumo(models.Model):
         db_table = 'metricas_consumo'
         indexes = [
             models.Index(fields=['recurso', 'tipo_metrica', 'periodo_inicio'],
-                         name='metricas_recurso_tipo_periodo_idx'),
+                         name='met_rec_tipo_per_idx'),
             models.Index(fields=['periodo_inicio', 'periodo_fin'],
                          name='metricas_periodo_idx'),
         ]
