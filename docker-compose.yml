@@ -1,0 +1,271 @@
+version: "3.9"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# BITE.co Cloud Cost Management Platform – Local Development Stack
+# Architecture reference: architecture.md §3 Deployment Architecture
+# Run: docker compose up --build
+# ──────────────────────────────────────────────────────────────────────────────
+
+networks:
+  bite_network:
+    driver: bridge
+
+volumes:
+  postgres_usuarios_data:
+  postgres_cloud_data:
+  postgres_reportes_data:
+  redis_data:
+  rabbitmq_data:
+
+# ── Shared service defaults ───────────────────────────────────────────────────
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres_usuarios:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: usuarios_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_usuarios_data:/var/lib/postgresql/data
+    networks:
+      - bite_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d usuarios_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  postgres_cloud:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: cloud_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_cloud_data:/var/lib/postgresql/data
+    networks:
+      - bite_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloud_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  postgres_reportes:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: reportes_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_reportes_data:/var/lib/postgresql/data
+    networks:
+      - bite_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d reportes_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - bite_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: bite
+      RABBITMQ_DEFAULT_PASS: bite_pass
+      RABBITMQ_DEFAULT_VHOST: bite_vhost
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"  # Management UI: http://localhost:15672
+    networks:
+      - bite_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+
+  # ── Microservices ────────────────────────────────────────────────────────────
+
+  manejador_usuarios:
+    build:
+      context: ./manejador_usuarios
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./manejador_usuarios/.env.example
+    environment:
+      DB_HOST: postgres_usuarios
+      DB_NAME: usuarios_db
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+      RESOURCE_SERVICE_URL: http://manejador_cloud:8002
+    depends_on:
+      postgres_usuarios:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bite_network
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  manejador_cloud:
+    build:
+      context: ./manejador_cloud
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./manejador_cloud/.env.example
+    environment:
+      DB_HOST: postgres_cloud
+      DB_NAME: cloud_db
+      REDIS_URL: redis://redis:6379/1
+    depends_on:
+      postgres_cloud:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - bite_network
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8002/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  manejador_reportes:
+    build:
+      context: ./manejador_reportes
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./manejador_reportes/.env.example
+    environment:
+      DB_HOST: postgres_reportes
+      DB_NAME: reportes_db
+      REDIS_URL: redis://redis:6379/2
+      CELERY_RESULT_BACKEND: redis://redis:6379/3
+      RABBITMQ_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+      CELERY_BROKER_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+    depends_on:
+      postgres_reportes:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bite_network
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8003/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Manejador Reportes – Celery Worker (auto-scaling pool) ──────────────────
+  # architecture.md §4.1 – Worker Pool (Auto-scaling)
+  reportes_worker:
+    build:
+      context: ./manejador_reportes
+      dockerfile: Dockerfile
+    command: ["./entrypoint_worker.sh"]
+    env_file:
+      - ./manejador_reportes/.env.example
+    environment:
+      DB_HOST: postgres_reportes
+      DB_NAME: reportes_db
+      REDIS_URL: redis://redis:6379/2
+      CELERY_RESULT_BACKEND: redis://redis:6379/3
+      RABBITMQ_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+      CELERY_BROKER_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+      CELERY_WORKER_CONCURRENCY: "4"
+    depends_on:
+      postgres_reportes:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bite_network
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      replicas: 2  # Scale up during load tests
+
+  # ── Manejador Reportes – pika Consumer (Procesador de Eventos) ──────────────
+  reportes_consumer:
+    build:
+      context: ./manejador_reportes
+      dockerfile: Dockerfile
+    command: ["./entrypoint_consumer.sh"]
+    env_file:
+      - ./manejador_reportes/.env.example
+    environment:
+      DB_HOST: postgres_reportes
+      DB_NAME: reportes_db
+      REDIS_URL: redis://redis:6379/2
+      CELERY_RESULT_BACKEND: redis://redis:6379/3
+      RABBITMQ_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+      CELERY_BROKER_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+    depends_on:
+      postgres_reportes:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bite_network
+    restart: unless-stopped
+    logging: *default-logging

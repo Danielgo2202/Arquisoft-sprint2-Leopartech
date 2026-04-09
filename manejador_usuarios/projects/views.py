@@ -1,0 +1,75 @@
+import logging
+from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.db import connection, OperationalError
+
+from .serializers import ProyectoCreateSerializer, ProyectoResponseSerializer
+from .services import ProyectoService
+
+logger = logging.getLogger(__name__)
+
+
+class ProyectoCreateView(APIView):
+    """
+    POST /projects
+    Creates a Proyecto after validating Empresa and CuentaCloud(s).
+    Returns HTTP 201 quickly; evento proyecto_creado is published asynchronously.
+    Target latency: ≤ 100 ms (architecture.md §6 Performance SLA).
+    """
+
+    def post(self, request):
+        serializer = ProyectoCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            proyecto = ProyectoService.crear_proyecto(serializer.validated_data)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except Exception:
+            logger.exception("Unexpected error creating proyecto")
+            return Response(
+                {'error': 'Error interno del servidor.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        response_data = ProyectoResponseSerializer(proyecto).data
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class HealthCheckView(APIView):
+    """
+    GET /health
+    Returns service health. Used by AWS Load Balancer and Docker health checks.
+    """
+    throttle_classes = []
+
+    def get(self, request):
+        checks = {}
+
+        # Database
+        try:
+            connection.ensure_connection()
+            checks['database'] = 'ok'
+        except OperationalError:
+            checks['database'] = 'error'
+
+        # Redis
+        try:
+            from django.core.cache import cache
+            cache.set('_health', '1', 5)
+            checks['redis'] = 'ok' if cache.get('_health') == '1' else 'error'
+        except Exception:
+            checks['redis'] = 'error'
+
+        all_ok = all(v == 'ok' for v in checks.values())
+        http_status = status.HTTP_200_OK if all_ok else status.HTTP_503_SERVICE_UNAVAILABLE
+        return Response(
+            {
+                'service': 'manejador_usuarios',
+                'status': 'healthy' if all_ok else 'degraded',
+                'checks': checks,
+            },
+            status=http_status,
+        )

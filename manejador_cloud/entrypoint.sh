@@ -1,0 +1,37 @@
+#!/bin/bash
+set -e
+
+echo "Waiting for PostgreSQL..."
+until python -c "
+import os, psycopg2
+try:
+    psycopg2.connect(
+        dbname=os.environ.get('DB_NAME','cloud_db'),
+        user=os.environ.get('DB_USER','postgres'),
+        password=os.environ.get('DB_PASSWORD',''),
+        host=os.environ.get('DB_HOST','localhost'),
+        port=os.environ.get('DB_PORT','5432')
+    )
+    print('PostgreSQL ready')
+except Exception as e:
+    print(f'PostgreSQL not ready: {e}')
+    exit(1)
+"; do
+    sleep 2
+done
+
+echo "Running migrations..."
+python manage.py migrate --noinput
+
+echo "Loading initial data (cloud providers)..."
+python manage.py loaddata resources/fixtures/initial_providers.json 2>/dev/null || true
+
+echo "Starting gunicorn..."
+exec gunicorn manejador_cloud.wsgi:application \
+    --bind 0.0.0.0:8002 \
+    --workers "${GUNICORN_WORKERS:-4}" \
+    --threads "${GUNICORN_THREADS:-2}" \
+    --timeout "${GUNICORN_TIMEOUT:-30}" \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info
