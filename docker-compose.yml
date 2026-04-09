@@ -128,11 +128,11 @@ services:
     env_file:
       - ./manejador_usuarios/.env.example
     environment:
-      DB_HOST: postgres_usuarios
+      DB_HOST: ${DB_HOST:-postgres_usuarios}
       DB_NAME: usuarios_db
-      REDIS_URL: redis://redis:6379/0
-      RABBITMQ_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
-      RESOURCE_SERVICE_URL: http://manejador_cloud:8002
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
+      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-http://manejador_cloud:8002}
     depends_on:
       postgres_usuarios:
         condition: service_healthy
@@ -162,9 +162,9 @@ services:
     env_file:
       - ./manejador_cloud/.env.example
     environment:
-      DB_HOST: postgres_cloud
+      DB_HOST: ${DB_HOST:-postgres_cloud}
       DB_NAME: cloud_db
-      REDIS_URL: redis://redis:6379/1
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
     depends_on:
       postgres_cloud:
         condition: service_healthy
@@ -192,12 +192,12 @@ services:
     env_file:
       - ./manejador_reportes/.env.example
     environment:
-      DB_HOST: postgres_reportes
+      DB_HOST: ${DB_HOST:-postgres_reportes}
       DB_NAME: reportes_db
-      REDIS_URL: redis://redis:6379/2
-      CELERY_RESULT_BACKEND: redis://redis:6379/3
-      RABBITMQ_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
-      CELERY_BROKER_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/2}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/3}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
     depends_on:
       postgres_reportes:
         condition: service_healthy
@@ -228,13 +228,13 @@ services:
     env_file:
       - ./manejador_reportes/.env.example
     environment:
-      DB_HOST: postgres_reportes
+      DB_HOST: ${DB_HOST:-postgres_reportes}
       DB_NAME: reportes_db
-      REDIS_URL: redis://redis:6379/2
-      CELERY_RESULT_BACKEND: redis://redis:6379/3
-      RABBITMQ_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
-      CELERY_BROKER_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
-      CELERY_WORKER_CONCURRENCY: "4"
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/2}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/3}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
+      CELERY_WORKER_CONCURRENCY: "${CELERY_WORKER_CONCURRENCY:-4}"
     depends_on:
       postgres_reportes:
         condition: service_healthy
@@ -258,12 +258,12 @@ services:
     env_file:
       - ./manejador_reportes/.env.example
     environment:
-      DB_HOST: postgres_reportes
+      DB_HOST: ${DB_HOST:-postgres_reportes}
       DB_NAME: reportes_db
-      REDIS_URL: redis://redis:6379/2
-      CELERY_RESULT_BACKEND: redis://redis:6379/3
-      RABBITMQ_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
-      CELERY_BROKER_URL: amqp://bite:bite_pass@rabbitmq:5672/bite_vhost
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/2}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/3}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
     depends_on:
       postgres_reportes:
         condition: service_healthy
