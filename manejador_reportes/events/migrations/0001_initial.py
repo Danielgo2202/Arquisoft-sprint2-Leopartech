@@ -112,7 +112,7 @@ class Migration(migrations.Migration):
             model_name='reporte',
             index=models.Index(
                 fields=['empresa_id', 'tipo', 'periodo_inicio'],
-                name='reportes_empresa_tipo_periodo_idx',
+                name='rep_emp_tipo_per_idx',
             ),
         ),
         migrations.AddIndex(
@@ -178,7 +178,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='oportunidadahorro',
-            index=models.Index(fields=['analisis', 'estado'], name='oportunidad_analisis_estado_idx'),
+            index=models.Index(fields=['analisis', 'estado'], name='oport_analiz_estado_idx'),
         ),
         migrations.CreateModel(
             name='Notificacion',
@@ -210,6 +210,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='notificacion',
-            index=models.Index(fields=['usuario_id', 'enviada'], name='notificacion_usuario_enviada_idx'),
+            index=models.Index(fields=['usuario_id', 'enviada'], name='notif_usr_enviada_idx'),
         ),
     ]
