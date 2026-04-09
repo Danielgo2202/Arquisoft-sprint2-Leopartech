@@ -142,6 +142,8 @@ services:
         condition: service_healthy
     networks:
       - bite_network
+    volumes:
+      - ./database/seeds:/seeds:ro
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -170,6 +172,8 @@ services:
         condition: service_healthy
     networks:
       - bite_network
+    volumes:
+      - ./database/seeds:/seeds:ro
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -203,6 +207,8 @@ services:
         condition: service_healthy
     networks:
       - bite_network
+    volumes:
+      - ./database/seeds:/seeds:ro
     restart: unless-stopped
     logging: *default-logging
     healthcheck:

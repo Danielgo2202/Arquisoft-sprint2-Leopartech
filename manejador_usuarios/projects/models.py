@@ -25,6 +25,39 @@ class Empresa(models.Model):
         return f"{self.nombre} ({self.nit})"
 
 
+class Empleado(models.Model):
+    """
+    An employee belonging to a company.
+    Bounded context: Gestión de Usuarios
+    """
+    class Rol(models.TextChoices):
+        ADMIN = 'ADMIN', 'Admin'
+        MANAGER = 'MANAGER', 'Manager'
+        ANALYST = 'ANALYST', 'Analyst'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name='empleados',
+        db_index=True,
+    )
+    nombre_completo = models.CharField(max_length=150)
+    email = models.EmailField(unique=True)
+    rol = models.CharField(max_length=50, choices=Rol.choices, default=Rol.ANALYST)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'empleados'
+        indexes = [
+            models.Index(fields=['email'], name='empleados_email_idx'),
+            models.Index(fields=['rol'], name='empleados_rol_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.nombre_completo} ({self.email})"
+
+
 class Proyecto(models.Model):
     """
     A project within a company, linked to cloud accounts and a budget.
