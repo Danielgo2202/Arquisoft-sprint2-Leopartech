@@ -27,6 +27,7 @@ variable "project_prefix" {
   default     = "bite"
 }
 
+
 variable "allowed_ssh_cidr" {
   description = "CIDR allowed for SSH access. Restrict to your IP in production."
   type        = string
@@ -348,7 +349,7 @@ resource "aws_instance" "redis" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.cache.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 10
@@ -384,7 +385,7 @@ resource "aws_instance" "rabbitmq" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.broker.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 10
@@ -427,7 +428,7 @@ resource "aws_instance" "postgres_usuarios" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.db.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 20
@@ -466,7 +467,7 @@ resource "aws_instance" "postgres_cloud" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.db.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 20
@@ -505,7 +506,7 @@ resource "aws_instance" "postgres_reportes" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.db.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 20
@@ -549,7 +550,7 @@ resource "aws_instance" "manejador_usuarios" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.app.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 20
@@ -624,7 +625,7 @@ resource "aws_instance" "manejador_cloud" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.app.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 20
@@ -689,7 +690,7 @@ resource "aws_instance" "manejador_reportes" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.app.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 20
@@ -769,7 +770,7 @@ resource "aws_instance" "worker_pool" {
   subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.worker.id, aws_security_group.ssh.id]
-  key_name                    = var.key_name
+
 
   root_block_device {
     volume_size = 20
