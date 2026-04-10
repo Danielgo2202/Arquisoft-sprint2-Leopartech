@@ -85,10 +85,10 @@ LOGGING = {
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
-    'DEFAULT_THROTTLE_CLASSES': ['rest_framework.throttling.AnonRateThrottle'],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': os.environ.get('API_THROTTLE_ANON', '2000/min'),
-    },
+    'DEFAULT_THROTTLE_CLASSES': [],
+    #'DEFAULT_THROTTLE_RATES': {
+    #    'anon': os.environ.get('API_THROTTLE_ANON', '2000/min'),
+    #},
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
 }
