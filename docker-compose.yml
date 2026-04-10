@@ -135,7 +135,7 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-http://manejador_cloud:8002}
+      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-http://manejador-cloud:8002}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
       DEBUG: ${DEBUG:-False}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-a-long-random-string}
@@ -184,7 +184,9 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - bite_network
+      bite_network:
+        aliases:
+          - manejador-cloud
     volumes:
       - ./database/seeds:/seeds:ro
     restart: unless-stopped

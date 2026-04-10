@@ -17,9 +17,8 @@ except Exception as e:
 done
 
 echo "Starting Celery worker (manejador_reportes)..."
-# No --queues: Celery uses CELERY_DEFAULT_QUEUE from settings ('bite.eventos')
-# This matches the terraform worker_pool command exactly.
 exec celery -A manejador_reportes.celery worker \
     --loglevel=info \
     --concurrency="${CELERY_WORKER_CONCURRENCY:-4}" \
+    --queues=bite.eventos,bite.proyectos,bite.analisis,bite.reportes \
     --hostname=worker@%h
