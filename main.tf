@@ -27,11 +27,6 @@ variable "project_prefix" {
   default     = "bite"
 }
 
-variable "key_name" {
-  description = "EC2 key pair name for SSH access (must exist in your AWS Academy account)"
-  type        = string
-}
-
 variable "allowed_ssh_cidr" {
   description = "CIDR allowed for SSH access. Restrict to your IP in production."
   type        = string
