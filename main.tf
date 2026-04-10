@@ -12,7 +12,7 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# VARIABLES — fill before applying
+# VARIABLES - fill before applying
 # -----------------------------------------------------------------------------
 
 variable "region" {
@@ -52,7 +52,7 @@ variable "celery_worker_concurrency" {
   default     = 4
 }
 
-# Instance types — kept at the smallest viable size for AWS Academy budget
+# Instance types - kept at the smallest viable size for AWS Academy budget
 variable "instance_type_app" {
   description = "EC2 type for Django app servers (manejador_usuarios, manejador_cloud, manejador_reportes)"
   type        = string
@@ -96,7 +96,7 @@ data "aws_subnets" "default" {
   }
 }
 
-# Ubuntu 22.04 LTS — matches architecture.md deployment spec
+# Ubuntu 22.04 LTS - matches architecture.md deployment spec
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
@@ -143,7 +143,7 @@ locals {
 
 # -----------------------------------------------------------------------------
 # SECURITY GROUPS
-# architecture.md §3 — each tier has its own SG with minimal ingress rules
+# architecture.md §3 - each tier has its own SG with minimal ingress rules
 # -----------------------------------------------------------------------------
 
 resource "aws_security_group" "ssh" {
@@ -169,10 +169,10 @@ resource "aws_security_group" "ssh" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-ssh" })
 }
 
-# ALB security group — accepts HTTP from anywhere, forwards to app servers
+# ALB security group - accepts HTTP from anywhere, forwards to app servers
 resource "aws_security_group" "alb" {
   name        = "${var.project_prefix}-alb"
-  description = "Application Load Balancer — public HTTP ingress"
+  description = "Application Load Balancer - public HTTP ingress"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -193,10 +193,10 @@ resource "aws_security_group" "alb" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-alb" })
 }
 
-# App servers — only accept traffic from the ALB and SSH
+# App servers - only accept traffic from the ALB and SSH
 resource "aws_security_group" "app" {
   name        = "${var.project_prefix}-app"
-  description = "Django app servers — accepts from ALB only"
+  description = "Django app servers - accepts from ALB only"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -208,7 +208,7 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "manejador_cloud — internal VPC only (no ALB)"
+    description = "manejador_cloud - internal VPC only (no ALB)"
     from_port   = 8002
     to_port     = 8002
     protocol    = "tcp"
@@ -233,10 +233,10 @@ resource "aws_security_group" "app" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-app" })
 }
 
-# Databases — only reachable from within the VPC
+# Databases - only reachable from within the VPC
 resource "aws_security_group" "db" {
   name        = "${var.project_prefix}-db"
-  description = "PostgreSQL — VPC-internal only"
+  description = "PostgreSQL - VPC-internal only"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -257,10 +257,10 @@ resource "aws_security_group" "db" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-db" })
 }
 
-# Redis — VPC-internal only
+# Redis - VPC-internal only
 resource "aws_security_group" "cache" {
   name        = "${var.project_prefix}-cache"
-  description = "Redis — VPC-internal only"
+  description = "Redis - VPC-internal only"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -281,10 +281,10 @@ resource "aws_security_group" "cache" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-cache" })
 }
 
-# RabbitMQ — VPC-internal AMQP + management UI
+# RabbitMQ - VPC-internal AMQP + management UI
 resource "aws_security_group" "broker" {
   name        = "${var.project_prefix}-broker"
-  description = "RabbitMQ — VPC-internal AMQP and management UI"
+  description = "RabbitMQ - VPC-internal AMQP and management UI"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -313,10 +313,10 @@ resource "aws_security_group" "broker" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-broker" })
 }
 
-# Worker pool — no inbound HTTP needed, only SSH and VPC egress
+# Worker pool - no inbound HTTP needed, only SSH and VPC egress
 resource "aws_security_group" "worker" {
   name        = "${var.project_prefix}-worker"
-  description = "Celery worker pool — SSH only, full VPC egress"
+  description = "Celery worker pool - SSH only, full VPC egress"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -339,7 +339,7 @@ resource "aws_security_group" "worker" {
 
 # -----------------------------------------------------------------------------
 # SHARED INFRASTRUCTURE
-# architecture.md §3.5 — Redis (Elasticache) + RabbitMQ (AMQP)
+# architecture.md §3.5 - Redis (Elasticache) + RabbitMQ (AMQP)
 # Using EC2 for AWS Academy compatibility (Elasticache requires VPC config)
 # -----------------------------------------------------------------------------
 
@@ -365,7 +365,7 @@ resource "aws_instance" "redis" {
     # Allow connections from entire VPC
     sudo sed -i 's/^bind 127.0.0.1/bind 0.0.0.0/' /etc/redis/redis.conf
     sudo sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf
-    # LRU eviction policy — matches docker-compose config
+    # LRU eviction policy - matches docker-compose config
     echo "maxmemory 256mb" | sudo tee -a /etc/redis/redis.conf
     echo "maxmemory-policy allkeys-lru" | sudo tee -a /etc/redis/redis.conf
     sudo systemctl enable redis-server
@@ -418,8 +418,8 @@ resource "aws_instance" "rabbitmq" {
 }
 
 # -----------------------------------------------------------------------------
-# DATABASES — one PostgreSQL EC2 per microservice
-# architecture.md §3.4 — database isolation per service
+# DATABASES - one PostgreSQL EC2 per microservice
+# architecture.md §3.4 - database isolation per service
 # -----------------------------------------------------------------------------
 
 resource "aws_instance" "postgres_usuarios" {
@@ -541,7 +541,7 @@ resource "aws_instance" "postgres_reportes" {
 
 # -----------------------------------------------------------------------------
 # APPLICATION SERVERS
-# architecture.md §3.3 — Django services on Ubuntu 22.04
+# architecture.md §3.3 - Django services on Ubuntu 22.04
 # -----------------------------------------------------------------------------
 
 resource "aws_instance" "manejador_usuarios" {
@@ -557,7 +557,7 @@ resource "aws_instance" "manejador_usuarios" {
     volume_type = "gp3"
   }
 
-  # Depends on all infra — user_data waits with nc before starting the service
+  # Depends on all infra - user_data waits with nc before starting the service
   depends_on = [
     aws_instance.postgres_usuarios,
     aws_instance.redis,
@@ -570,7 +570,7 @@ resource "aws_instance" "manejador_usuarios" {
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
 
-    # Environment — mirrors docker-compose env vars exactly
+    # Environment - mirrors docker-compose env vars exactly
     sudo tee /etc/environment <<ENV
     DATABASE_HOST=${aws_instance.postgres_usuarios.private_ip}
     DATABASE_PORT=5432
@@ -758,7 +758,7 @@ resource "aws_instance" "manejador_reportes" {
 
 # -----------------------------------------------------------------------------
 # CELERY WORKER POOL
-# architecture.md §4.1 — Worker Pool (Auto-scaling) for ASR17
+# architecture.md §4.1 - Worker Pool (Auto-scaling) for ASR17
 # Two EC2 instances running Celery workers, each with configurable concurrency
 # -----------------------------------------------------------------------------
 
@@ -824,7 +824,7 @@ resource "aws_instance" "worker_pool" {
 
     cd ${local.repo_dir}/manejador_reportes
     sudo python3 -m pip install -r requirements.txt
-    # Celery reads directly from RabbitMQ — no pika consumer middleman
+    # Celery reads directly from RabbitMQ - no pika consumer middleman
     nohup python3 -m celery -A manejador_reportes.celery worker \
       --loglevel=info \
       --concurrency=${var.celery_worker_concurrency} \
@@ -839,10 +839,10 @@ resource "aws_instance" "worker_pool" {
 
 # -----------------------------------------------------------------------------
 # APPLICATION LOAD BALANCER
-# architecture.md §3.2 — AWS Application Load Balancer
+# architecture.md §3.2 - AWS Application Load Balancer
 # Routes ASR16 traffic → manejador_usuarios (port 8001)
 # Routes ASR17 traffic → manejador_reportes (port 8003)
-# manejador_cloud is internal only — not exposed via ALB
+# manejador_cloud is internal only - not exposed via ALB
 # -----------------------------------------------------------------------------
 
 resource "aws_lb" "main" {
@@ -855,7 +855,7 @@ resource "aws_lb" "main" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-alb" })
 }
 
-# Target group for manejador_usuarios — ASR16 latency experiment
+# Target group for manejador_usuarios - ASR16 latency experiment
 resource "aws_lb_target_group" "usuarios" {
   name     = "${var.project_prefix}-tg-usuarios"
   port     = 8001
@@ -874,7 +874,7 @@ resource "aws_lb_target_group" "usuarios" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-tg-usuarios" })
 }
 
-# Target group for manejador_reportes — ASR17 scalability experiment
+# Target group for manejador_reportes - ASR17 scalability experiment
 resource "aws_lb_target_group" "reportes" {
   name     = "${var.project_prefix}-tg-reportes"
   port     = 8003
@@ -906,7 +906,7 @@ resource "aws_lb_target_group_attachment" "reportes" {
   port             = 8003
 }
 
-# ALB Listener — routes by path prefix
+# ALB Listener - routes by path prefix
 # /projects* → manejador_usuarios (ASR16)
 # /events*   → manejador_reportes (ASR17)
 resource "aws_lb_listener" "http" {
@@ -938,11 +938,11 @@ resource "aws_lb_listener_rule" "events" {
 }
 
 # -----------------------------------------------------------------------------
-# OUTPUTS — use these in JMeter HTTP Request samplers
+# OUTPUTS - use these in JMeter HTTP Request samplers
 # -----------------------------------------------------------------------------
 
 output "alb_dns_name" {
-  description = "ALB DNS name — use this as the JMeter host for both experiments"
+  description = "ALB DNS name - use this as the JMeter host for both experiments"
   value       = aws_lb.main.dns_name
 }
 
@@ -957,22 +957,22 @@ output "alb_reportes_url" {
 }
 
 output "manejador_cloud_public_ip" {
-  description = "manejador_cloud public IP — internal service, for SSH debugging only"
+  description = "manejador_cloud public IP - internal service, for SSH debugging only"
   value       = aws_instance.manejador_cloud.public_ip
 }
 
 output "redis_private_ip" {
-  description = "Redis private IP — VPC-internal only"
+  description = "Redis private IP - VPC-internal only"
   value       = aws_instance.redis.private_ip
 }
 
 output "rabbitmq_private_ip" {
-  description = "RabbitMQ private IP — VPC-internal only"
+  description = "RabbitMQ private IP - VPC-internal only"
   value       = aws_instance.rabbitmq.private_ip
 }
 
 output "rabbitmq_management_url" {
-  description = "RabbitMQ management UI — accessible from within the VPC only"
+  description = "RabbitMQ management UI - accessible from within the VPC only"
   value       = "http://${aws_instance.rabbitmq.private_ip}:15672"
 }
 
@@ -989,6 +989,6 @@ output "postgres_reportes_private_ip" {
 }
 
 output "worker_public_ips" {
-  description = "Celery worker pool public IPs — for SSH debugging"
+  description = "Celery worker pool public IPs - for SSH debugging"
   value       = { for id, instance in aws_instance.worker_pool : id => instance.public_ip }
 }
