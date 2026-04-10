@@ -613,6 +613,7 @@ resource "aws_instance" "manejador_usuarios" {
     cd ${local.repo_dir}/manejador_usuarios
     sudo python3 -m pip install -r requirements.txt
     python3 manage.py migrate --noinput || true
+    python3 manage.py dbshell < ../database/seeds/seed_users_company.sql || true
     nohup python3 manage.py runserver 0.0.0.0:8001 > /var/log/manejador_usuarios.log 2>&1 &
   EOT
 
@@ -750,6 +751,7 @@ resource "aws_instance" "manejador_reportes" {
     cd ${local.repo_dir}/manejador_reportes
     sudo python3 -m pip install -r requirements.txt
     python3 manage.py migrate --noinput || true
+    python3 manage.py dbshell < ../database/seeds/seed_reports.sql || true
     nohup python3 manage.py runserver 0.0.0.0:8003 > /var/log/manejador_reportes.log 2>&1 &
   EOT
 
