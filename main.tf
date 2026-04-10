@@ -132,16 +132,16 @@ locals {
   # Shared startup script: clones the repo and waits for dependencies
   # Usage: interpolate after setting env vars in each user_data block
   git_bootstrap = <<-SCRIPT
-    apt-get update -y
-    apt-get install -y python3-pip git build-essential libpq-dev python3-dev postgresql-client netcat-openbsd
+    sudo apt-get update -y
+    sudo apt-get install -y python3-pip git build-essential libpq-dev python3-dev postgresql-client netcat-openbsd
     if [ ! -d "${local.repo_dir}/.git" ]; then
-      git clone ${var.repository} ${local.repo_dir}
+      sudo git clone ${var.repository} ${local.repo_dir}
     fi
     cd ${local.repo_dir}
     git fetch origin ${var.branch} || true
     git checkout ${var.branch} || true
     git pull origin ${var.branch} || true
-    python3 -m pip install --upgrade pip
+    sudo python3 -m pip install --upgrade pip
   SCRIPT
 }
 
@@ -364,16 +364,16 @@ resource "aws_instance" "redis" {
     #!/bin/bash
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y
-    apt-get install -y redis-server
+    sudo apt-get update -y
+    sudo apt-get install -y redis-server
     # Allow connections from entire VPC
-    sed -i 's/^bind 127.0.0.1/bind 0.0.0.0/' /etc/redis/redis.conf
-    sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf
+    sudo sed -i 's/^bind 127.0.0.1/bind 0.0.0.0/' /etc/redis/redis.conf
+    sudo sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf
     # LRU eviction policy — matches docker-compose config
-    echo "maxmemory 256mb" >> /etc/redis/redis.conf
-    echo "maxmemory-policy allkeys-lru" >> /etc/redis/redis.conf
-    systemctl enable redis-server
-    systemctl restart redis-server
+    echo "maxmemory 256mb" | sudo tee -a /etc/redis/redis.conf
+    echo "maxmemory-policy allkeys-lru" | sudo tee -a /etc/redis/redis.conf
+    sudo systemctl enable redis-server
+    sudo systemctl restart redis-server
   EOT
 
   tags = merge(local.common_tags, {
@@ -400,18 +400,18 @@ resource "aws_instance" "rabbitmq" {
     #!/bin/bash
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y
-    apt-get install -y rabbitmq-server
-    systemctl enable rabbitmq-server
-    systemctl start rabbitmq-server
+    sudo apt-get update -y
+    sudo apt-get install -y rabbitmq-server
+    sudo systemctl enable rabbitmq-server
+    sudo systemctl start rabbitmq-server
     # Enable management UI
-    rabbitmq-plugins enable rabbitmq_management
+    sudo rabbitmq-plugins enable rabbitmq_management
     # Create vhost and user matching docker-compose credentials
-    rabbitmqctl add_vhost bite_vhost || true
-    rabbitmqctl add_user bite bite_pass || true
-    rabbitmqctl set_user_tags bite administrator || true
-    rabbitmqctl set_permissions -p bite_vhost bite ".*" ".*" ".*" || true
-    systemctl restart rabbitmq-server
+    sudo rabbitmqctl add_vhost bite_vhost || true
+    sudo rabbitmqctl add_user bite bite_pass || true
+    sudo rabbitmqctl set_user_tags bite administrator || true
+    sudo rabbitmqctl set_permissions -p bite_vhost bite ".*" ".*" ".*" || true
+    sudo systemctl restart rabbitmq-server
   EOT
 
   tags = merge(local.common_tags, {
@@ -443,15 +443,15 @@ resource "aws_instance" "postgres_usuarios" {
     #!/bin/bash
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y
-    apt-get install -y postgresql postgresql-contrib
+    sudo apt-get update -y
+    sudo apt-get install -y postgresql postgresql-contrib
     PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n 1)
     DB_CONF=/etc/postgresql/$PG_VERSION/main
-    echo "listen_addresses = '*'" >> $DB_CONF/postgresql.conf
+    echo "listen_addresses = '*'" | sudo tee -a $DB_CONF/postgresql.conf
     grep -q "${data.aws_vpc.default.cidr_block}" $DB_CONF/pg_hba.conf || \
-      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" >> $DB_CONF/pg_hba.conf
-    systemctl enable postgresql
-    systemctl restart postgresql
+      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" | sudo tee -a $DB_CONF/pg_hba.conf
+    sudo systemctl enable postgresql
+    sudo systemctl restart postgresql
     sleep 5
     sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='admin'" | grep -q 1 || \
       sudo -u postgres psql -c "CREATE ROLE admin LOGIN PASSWORD 'admin123';"
@@ -482,15 +482,15 @@ resource "aws_instance" "postgres_cloud" {
     #!/bin/bash
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y
-    apt-get install -y postgresql postgresql-contrib
+    sudo apt-get update -y
+    sudo apt-get install -y postgresql postgresql-contrib
     PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n 1)
     DB_CONF=/etc/postgresql/$PG_VERSION/main
-    echo "listen_addresses = '*'" >> $DB_CONF/postgresql.conf
+    echo "listen_addresses = '*'" | sudo tee -a $DB_CONF/postgresql.conf
     grep -q "${data.aws_vpc.default.cidr_block}" $DB_CONF/pg_hba.conf || \
-      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" >> $DB_CONF/pg_hba.conf
-    systemctl enable postgresql
-    systemctl restart postgresql
+      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" | sudo tee -a $DB_CONF/pg_hba.conf
+    sudo systemctl enable postgresql
+    sudo systemctl restart postgresql
     sleep 5
     sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='admin'" | grep -q 1 || \
       sudo -u postgres psql -c "CREATE ROLE admin LOGIN PASSWORD 'admin123';"
@@ -521,15 +521,15 @@ resource "aws_instance" "postgres_reportes" {
     #!/bin/bash
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y
-    apt-get install -y postgresql postgresql-contrib
+    sudo apt-get update -y
+    sudo apt-get install -y postgresql postgresql-contrib
     PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n 1)
     DB_CONF=/etc/postgresql/$PG_VERSION/main
-    echo "listen_addresses = '*'" >> $DB_CONF/postgresql.conf
+    echo "listen_addresses = '*'" | sudo tee -a $DB_CONF/postgresql.conf
     grep -q "${data.aws_vpc.default.cidr_block}" $DB_CONF/pg_hba.conf || \
-      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" >> $DB_CONF/pg_hba.conf
-    systemctl enable postgresql
-    systemctl restart postgresql
+      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" | sudo tee -a $DB_CONF/pg_hba.conf
+    sudo systemctl enable postgresql
+    sudo systemctl restart postgresql
     sleep 5
     sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='admin'" | grep -q 1 || \
       sudo -u postgres psql -c "CREATE ROLE admin LOGIN PASSWORD 'admin123';"
@@ -575,7 +575,7 @@ resource "aws_instance" "manejador_usuarios" {
     export DEBIAN_FRONTEND=noninteractive
 
     # Environment — mirrors docker-compose env vars exactly
-    cat >/etc/environment <<ENV
+    sudo tee /etc/environment <<ENV
     DATABASE_HOST=${aws_instance.postgres_usuarios.private_ip}
     DATABASE_PORT=5432
     DATABASE_NAME=usuarios_db
@@ -611,7 +611,7 @@ resource "aws_instance" "manejador_usuarios" {
     until nc -z ${aws_instance.manejador_cloud.private_ip} 8002; do sleep 5; done
 
     cd ${local.repo_dir}/manejador_usuarios
-    python3 -m pip install -r requirements.txt
+    sudo python3 -m pip install -r requirements.txt
     python3 manage.py migrate --noinput || true
     nohup python3 manage.py runserver 0.0.0.0:8001 > /var/log/manejador_usuarios.log 2>&1 &
   EOT
@@ -646,7 +646,7 @@ resource "aws_instance" "manejador_cloud" {
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
 
-    cat >/etc/environment <<ENV
+    sudo tee /etc/environment <<ENV
     DATABASE_HOST=${aws_instance.postgres_cloud.private_ip}
     DATABASE_PORT=5432
     DATABASE_NAME=cloud_db
@@ -674,7 +674,7 @@ resource "aws_instance" "manejador_cloud" {
     until nc -z ${aws_instance.redis.private_ip} 6379; do sleep 5; done
 
     cd ${local.repo_dir}/manejador_cloud
-    python3 -m pip install -r requirements.txt
+    sudo python3 -m pip install -r requirements.txt
     python3 manage.py migrate --noinput || true
     # Seed ProveedorCloud, CuentaCloud, RecursoCloud, MetricaConsumo
     python3 manage.py seed_cloud_data || true
@@ -712,7 +712,7 @@ resource "aws_instance" "manejador_reportes" {
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
 
-    cat >/etc/environment <<ENV
+    sudo tee /etc/environment <<ENV
     DATABASE_HOST=${aws_instance.postgres_reportes.private_ip}
     DATABASE_PORT=5432
     DATABASE_NAME=reportes_db
@@ -748,7 +748,7 @@ resource "aws_instance" "manejador_reportes" {
     until nc -z ${aws_instance.rabbitmq.private_ip} 5672; do sleep 5; done
 
     cd ${local.repo_dir}/manejador_reportes
-    python3 -m pip install -r requirements.txt
+    sudo python3 -m pip install -r requirements.txt
     python3 manage.py migrate --noinput || true
     nohup python3 manage.py runserver 0.0.0.0:8003 > /var/log/manejador_reportes.log 2>&1 &
   EOT
@@ -792,7 +792,7 @@ resource "aws_instance" "worker_pool" {
     set -euxo pipefail
     export DEBIAN_FRONTEND=noninteractive
 
-    cat >/etc/environment <<ENV
+    sudo tee /etc/environment <<ENV
     DATABASE_HOST=${aws_instance.postgres_reportes.private_ip}
     DATABASE_PORT=5432
     DATABASE_NAME=reportes_db
@@ -827,7 +827,7 @@ resource "aws_instance" "worker_pool" {
     until nc -z ${aws_instance.rabbitmq.private_ip} 5672; do sleep 5; done
 
     cd ${local.repo_dir}/manejador_reportes
-    python3 -m pip install -r requirements.txt
+    sudo python3 -m pip install -r requirements.txt
     # Celery reads directly from RabbitMQ — no pika consumer middleman
     nohup python3 -m celery -A manejador_reportes.celery worker \
       --loglevel=info \
