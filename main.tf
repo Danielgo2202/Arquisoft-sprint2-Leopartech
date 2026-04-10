@@ -767,7 +767,7 @@ resource "aws_instance" "manejador_reportes" {
 # -----------------------------------------------------------------------------
 
 resource "aws_instance" "worker_pool" {
-  for_each = toset(["a", "b"])
+  for_each = toset(["a"])
 
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type_worker
