@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from kombu import Exchange, Queue, binding
+from kombu import Exchange, Queue
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -68,27 +68,21 @@ CELERY_TASK_TIME_LIMIT = int(os.environ.get('CELERY_TASK_TIME_LIMIT', '180'))
 CELERY_WORKER_CONCURRENCY = int(os.environ.get('CELERY_WORKER_CONCURRENCY', '4'))
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # ── RabbitMQ topic exchange – same exchange manejador_usuarios publishes to ──
 # architecture.md §4.1 Scalability Experiment – bite_events topic exchange
-#
-# Single queue 'bite.eventos' bound to all routing-key patterns so that
-# workers started without --queues (e.g. Terraform) use the default queue
-# and still receive every event type.
-_BITE_EXCHANGE = Exchange('bite_events', type='topic', durable=True)
+_bite_exchange = Exchange('bite_events', type='topic', durable=True)
 
-CELERY_DEFAULT_QUEUE = 'bite.eventos'
-CELERY_QUEUES = (
-    Queue(
-        'bite.eventos',
-        bindings=[
-            binding(_BITE_EXCHANGE, routing_key='evento.#'),
-            binding(_BITE_EXCHANGE, routing_key='proyecto.*'),
-            binding(_BITE_EXCHANGE, routing_key='analisis.*'),
-            binding(_BITE_EXCHANGE, routing_key='reporte.*'),
-        ],
-        durable=True,
-    ),
+CELERY_TASK_DEFAULT_QUEUE = 'bite.eventos'
+CELERY_TASK_DEFAULT_EXCHANGE = 'bite_events'
+CELERY_TASK_DEFAULT_ROUTING_KEY = 'evento.batch'
+
+CELERY_TASK_QUEUES = (
+    Queue('bite.eventos',   _bite_exchange, routing_key='evento.#'),
+    Queue('bite.proyectos', _bite_exchange, routing_key='proyecto.*'),
+    Queue('bite.analisis',  _bite_exchange, routing_key='analisis.*'),
+    Queue('bite.reportes',  _bite_exchange, routing_key='reporte.*'),
 )
 
 # All tasks route to bite.eventos on the bite_events exchange

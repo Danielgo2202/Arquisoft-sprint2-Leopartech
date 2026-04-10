@@ -1,0 +1,386 @@
+=== 1. Rebuild ===
+time="2026-04-09T19:42:50-05:00" level=warning msg="/home/david/Documents/arquisoft/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container arquisoft-manejador_reportes-1 Stopping 
+ Container arquisoft-reportes_worker-1 Stopping 
+ Container arquisoft-manejador_usuarios-1 Stopping 
+ Container arquisoft-manejador_cloud-1 Stopping 
+ Container arquisoft-manejador_reportes-1 Stopped 
+ Container arquisoft-manejador_reportes-1 Removing 
+ Container arquisoft-manejador_reportes-1 Removed 
+ Container arquisoft-manejador_cloud-1 Stopped 
+ Container arquisoft-manejador_cloud-1 Removing 
+ Container arquisoft-manejador_cloud-1 Removed 
+ Container arquisoft-postgres_cloud-1 Stopping 
+ Container arquisoft-manejador_usuarios-1 Stopped 
+ Container arquisoft-manejador_usuarios-1 Removing 
+ Container arquisoft-manejador_usuarios-1 Removed 
+ Container arquisoft-postgres_usuarios-1 Stopping 
+ Container arquisoft-postgres_cloud-1 Stopped 
+ Container arquisoft-postgres_cloud-1 Removing 
+ Container arquisoft-postgres_cloud-1 Removed 
+ Container arquisoft-postgres_usuarios-1 Stopped 
+ Container arquisoft-postgres_usuarios-1 Removing 
+ Container arquisoft-postgres_usuarios-1 Removed 
+ Container arquisoft-reportes_worker-1 Stopped 
+ Container arquisoft-reportes_worker-1 Removing 
+ Container arquisoft-reportes_worker-1 Removed 
+ Container arquisoft-postgres_reportes-1 Stopping 
+ Container arquisoft-rabbitmq-1 Stopping 
+ Container arquisoft-redis-1 Stopping 
+ Container arquisoft-redis-1 Stopped 
+ Container arquisoft-redis-1 Removing 
+ Container arquisoft-redis-1 Removed 
+ Container arquisoft-postgres_reportes-1 Stopped 
+ Container arquisoft-postgres_reportes-1 Removing 
+ Container arquisoft-postgres_reportes-1 Removed 
+ Container arquisoft-rabbitmq-1 Stopped 
+ Container arquisoft-rabbitmq-1 Removing 
+ Container arquisoft-rabbitmq-1 Removed 
+ Volume arquisoft_postgres_cloud_data Removing 
+ Volume arquisoft_postgres_usuarios_data Removing 
+ Volume arquisoft_rabbitmq_data Removing 
+ Volume arquisoft_postgres_reportes_data Removing 
+ Volume arquisoft_redis_data Removing 
+ Network arquisoft_bite_network Removing 
+ Volume arquisoft_postgres_cloud_data Removed 
+ Volume arquisoft_rabbitmq_data Removed 
+ Network arquisoft_bite_network Removed 
+ Volume arquisoft_postgres_reportes_data Removed 
+ Volume arquisoft_postgres_usuarios_data Removed 
+ Volume arquisoft_redis_data Removed 
+time="2026-04-09T19:43:00-05:00" level=warning msg="/home/david/Documents/arquisoft/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image arquisoft-manejador_cloud Building 
+ Image arquisoft-manejador_reportes Building 
+ Image arquisoft-manejador_usuarios Building 
+ Image arquisoft-reportes_worker Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.12kB done
+#1 DONE 0.0s
+
+#2 [reportes_worker internal] load build definition from Dockerfile
+#2 transferring dockerfile: 684B done
+#2 DONE 0.0s
+
+#3 [manejador_cloud internal] load build definition from Dockerfile
+#3 transferring dockerfile: 647B done
+#3 DONE 0.0s
+
+#4 [manejador_usuarios internal] load build definition from Dockerfile
+#4 transferring dockerfile: 647B done
+#4 DONE 0.0s
+
+#5 [manejador_usuarios internal] load metadata for docker.io/library/python:3.11-slim
+#5 DONE 1.0s
+
+#6 [reportes_worker internal] load .dockerignore
+#6 transferring context: 2B done
+#6 DONE 0.0s
+
+#7 [manejador_cloud internal] load .dockerignore
+#7 transferring context: 2B done
+#7 DONE 0.0s
+
+#8 [manejador_usuarios internal] load .dockerignore
+#8 transferring context: 2B done
+#8 DONE 0.0s
+
+#9 [manejador_reportes 1/7] FROM docker.io/library/python:3.11-slim@sha256:233de06753d30d120b1a3ce359d8d3be8bda78524cd8f520c99883bfe33964cf
+#9 resolve docker.io/library/python:3.11-slim@sha256:233de06753d30d120b1a3ce359d8d3be8bda78524cd8f520c99883bfe33964cf 0.0s done
+#9 DONE 0.0s
+
+#10 [manejador_usuarios internal] load build context
+#10 transferring context: 1.01kB done
+#10 DONE 0.0s
+
+#11 [manejador_reportes internal] load build context
+#11 transferring context: 1.26kB done
+#11 DONE 0.0s
+
+#12 [manejador_cloud internal] load build context
+#12 transferring context: 1.22kB done
+#12 DONE 0.0s
+
+#13 [manejador_usuarios 4/7] COPY requirements.txt .
+#13 CACHED
+
+#14 [manejador_usuarios 6/7] COPY . .
+#14 CACHED
+
+#15 [manejador_usuarios 5/7] RUN pip install --no-cache-dir -r requirements.txt
+#15 CACHED
+
+#16 [manejador_usuarios 7/7] RUN chmod +x entrypoint.sh
+#16 CACHED
+
+#17 [manejador_cloud 4/7] COPY requirements.txt .
+#17 CACHED
+
+#18 [manejador_cloud 6/7] COPY . .
+#18 CACHED
+
+#19 [manejador_cloud 5/7] RUN pip install --no-cache-dir -r requirements.txt
+#19 CACHED
+
+#20 [manejador_reportes 5/7] RUN pip install --no-cache-dir -r requirements.txt
+#20 CACHED
+
+#21 [manejador_reportes 4/7] COPY requirements.txt .
+#21 CACHED
+
+#22 [manejador_reportes 2/7] WORKDIR /app
+#22 CACHED
+
+#23 [manejador_reportes 6/7] COPY . .
+#23 CACHED
+
+#24 [manejador_reportes 3/7] RUN apt-get update && apt-get install -y --no-install-recommends     libpq-dev     gcc     curl     postgresql-client     && rm -rf /var/lib/apt/lists/*
+#24 CACHED
+
+#25 [manejador_cloud 7/7] RUN chmod +x entrypoint.sh
+#25 CACHED
+
+#26 [manejador_reportes 7/7] RUN chmod +x entrypoint.sh entrypoint_worker.sh entrypoint_consumer.sh
+#26 CACHED
+
+#27 [manejador_reportes] exporting to image
+#27 exporting layers done
+#27 exporting manifest sha256:7991ece2084a593ec52c6a039084a6134f67124913fd3aeae74d833567ec27c2 0.0s done
+#27 exporting config sha256:07e70285c72c24cd135257f7e66c07ea8d0eaaef1e7879f9ea752ec78d5b318e 0.0s done
+#27 exporting attestation manifest sha256:8eaf1f213977d406b4765bb36aa0556af26e1604501af2de54dbc1207add1e6c
+#27 exporting attestation manifest sha256:8eaf1f213977d406b4765bb36aa0556af26e1604501af2de54dbc1207add1e6c 0.1s done
+#27 exporting manifest list sha256:f3fe33c2ab018f2b19cfb7a4edcd694290ee09eea3f881c72bfa70bdcde93737
+#27 exporting manifest list sha256:f3fe33c2ab018f2b19cfb7a4edcd694290ee09eea3f881c72bfa70bdcde93737 0.1s done
+#27 naming to docker.io/library/arquisoft-manejador_reportes:latest 0.0s done
+#27 unpacking to docker.io/library/arquisoft-manejador_reportes:latest 0.0s done
+#27 DONE 0.4s
+
+#28 [manejador_usuarios] exporting to image
+#28 exporting layers done
+#28 exporting manifest sha256:b8e2689f7d4e61184dc64afe8b219f0a3c6342772344cbbc083f2f28b2ddead8 done
+#28 exporting config sha256:f2ebcce88757856025f67e25c4bd01e797a059ff5443a76c7e4e2f92f13d8645 0.0s done
+#28 exporting attestation manifest sha256:7a614d482ce1784c91e16ac8eee465887ff9daf71f865b3cf2270a7c92d70774 0.1s done
+#28 exporting manifest list sha256:14300c813c737228449faf5b35350f01eb7b85607357e20c35e1ad109539aa8d 0.1s done
+#28 naming to docker.io/library/arquisoft-manejador_usuarios:latest 0.0s done
+#28 unpacking to docker.io/library/arquisoft-manejador_usuarios:latest 0.0s done
+#28 DONE 0.4s
+
+#29 [manejador_cloud] exporting to image
+#29 exporting layers done
+#29 exporting manifest sha256:7918b2b81af53a7c02ddc4264b0db37bd5f8dd730e53ccda3ec1c67f2f3528db done
+#29 exporting config sha256:bfcf5df6ffc27684b00dc090eb90c648144058cc1d578e53b1e48063ca39fa5d 0.0s done
+#29 exporting attestation manifest sha256:86fba271470d58480d1cef980a80a4e6679b6f4aa271bd7038847a1481e152a5 0.1s done
+#29 exporting manifest list sha256:6a74a94039b03f5df67abeba4d1b70ac6459f1b5d50e53c6b556e158d796632b 0.1s done
+#29 naming to docker.io/library/arquisoft-manejador_cloud:latest 0.0s done
+#29 unpacking to docker.io/library/arquisoft-manejador_cloud:latest 0.0s done
+#29 DONE 0.4s
+
+#30 [reportes_worker] exporting to image
+#30 exporting layers done
+#30 exporting manifest sha256:3f42d4601ef1d3c2d159a23817f318fde712acc002160422d0d19f8de8d7d91f done
+#30 exporting config sha256:c489d87f0d475c60a31ce3e5857f4cd8e91665ee981c17b83f858c49cf40a18a 0.0s done
+#30 exporting attestation manifest sha256:4581023263a98a3ee9afc0a83945a7873c8d7b42e81c25cbcc7ae597dd907da3 0.1s done
+#30 exporting manifest list sha256:3714158164d7e5356ddc23cba94fafb064f22a261d2e1a3c07ee193217b940a3 0.1s done
+#30 naming to docker.io/library/arquisoft-reportes_worker:latest 0.0s done
+#30 unpacking to docker.io/library/arquisoft-reportes_worker:latest 0.0s done
+#30 DONE 0.4s
+
+#31 [manejador_usuarios] resolving provenance for metadata file
+#31 DONE 0.2s
+
+#32 [reportes_worker] resolving provenance for metadata file
+#32 DONE 0.1s
+
+#33 [manejador_cloud] resolving provenance for metadata file
+#33 DONE 0.2s
+
+#34 [manejador_reportes] resolving provenance for metadata file
+#34 DONE 0.0s
+ Image arquisoft-manejador_cloud Built 
+ Image arquisoft-manejador_usuarios Built 
+ Image arquisoft-reportes_worker Built 
+ Image arquisoft-manejador_reportes Built 
+ Network arquisoft_bite_network Creating 
+ Network arquisoft_bite_network Created 
+ Volume arquisoft_postgres_cloud_data Creating 
+ Volume arquisoft_postgres_cloud_data Created 
+ Volume arquisoft_postgres_usuarios_data Creating 
+ Volume arquisoft_postgres_usuarios_data Created 
+ Volume arquisoft_postgres_reportes_data Creating 
+ Volume arquisoft_postgres_reportes_data Created 
+ Volume arquisoft_rabbitmq_data Creating 
+ Volume arquisoft_rabbitmq_data Created 
+ Volume arquisoft_redis_data Creating 
+ Volume arquisoft_redis_data Created 
+ Container arquisoft-rabbitmq-1 Creating 
+ Container arquisoft-postgres_reportes-1 Creating 
+ Container arquisoft-postgres_cloud-1 Creating 
+ Container arquisoft-redis-1 Creating 
+ Container arquisoft-postgres_usuarios-1 Creating 
+ Container arquisoft-redis-1 Created 
+ Container arquisoft-postgres_cloud-1 Created 
+ Container arquisoft-manejador_cloud-1 Creating 
+ Container arquisoft-postgres_usuarios-1 Created 
+ Container arquisoft-rabbitmq-1 Created 
+ Container arquisoft-manejador_usuarios-1 Creating 
+ Container arquisoft-postgres_reportes-1 Created 
+ Container arquisoft-manejador_reportes-1 Creating 
+ Container arquisoft-reportes_worker-1 Creating 
+ Container arquisoft-manejador_cloud-1 Created 
+ Container arquisoft-manejador_usuarios-1 Created 
+ Container arquisoft-reportes_worker-1 Created 
+ Container arquisoft-manejador_reportes-1 Created 
+ Container arquisoft-postgres_reportes-1 Starting 
+ Container arquisoft-postgres_cloud-1 Starting 
+ Container arquisoft-postgres_usuarios-1 Starting 
+ Container arquisoft-rabbitmq-1 Starting 
+ Container arquisoft-redis-1 Starting 
+ Container arquisoft-postgres_reportes-1 Started 
+ Container arquisoft-postgres_usuarios-1 Started 
+ Container arquisoft-redis-1 Started 
+ Container arquisoft-postgres_cloud-1 Started 
+ Container arquisoft-redis-1 Waiting 
+ Container arquisoft-postgres_cloud-1 Waiting 
+ Container arquisoft-rabbitmq-1 Started 
+ Container arquisoft-rabbitmq-1 Waiting 
+ Container arquisoft-postgres_reportes-1 Waiting 
+ Container arquisoft-postgres_usuarios-1 Waiting 
+ Container arquisoft-redis-1 Waiting 
+ Container arquisoft-rabbitmq-1 Waiting 
+ Container arquisoft-redis-1 Waiting 
+ Container arquisoft-redis-1 Waiting 
+ Container arquisoft-rabbitmq-1 Waiting 
+ Container arquisoft-postgres_reportes-1 Waiting 
+ Container arquisoft-redis-1 Healthy 
+ Container arquisoft-redis-1 Healthy 
+ Container arquisoft-postgres_reportes-1 Healthy 
+ Container arquisoft-postgres_reportes-1 Healthy 
+ Container arquisoft-redis-1 Healthy 
+ Container arquisoft-postgres_usuarios-1 Healthy 
+ Container arquisoft-postgres_cloud-1 Healthy 
+ Container arquisoft-redis-1 Healthy 
+ Container arquisoft-manejador_cloud-1 Starting 
+ Container arquisoft-manejador_cloud-1 Started 
+ Container arquisoft-rabbitmq-1 Healthy 
+ Container arquisoft-rabbitmq-1 Healthy 
+ Container arquisoft-manejador_usuarios-1 Starting 
+ Container arquisoft-manejador_reportes-1 Starting 
+ Container arquisoft-rabbitmq-1 Healthy 
+ Container arquisoft-reportes_worker-1 Starting 
+ Container arquisoft-manejador_usuarios-1 Started 
+ Container arquisoft-reportes_worker-1 Started 
+ Container arquisoft-manejador_reportes-1 Started 
+=== 2. Wait 30s ===
+time="2026-04-09T19:43:47-05:00" level=warning msg="/home/david/Documents/arquisoft/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+NAME                             IMAGE                             COMMAND                  SERVICE              CREATED          STATUS                    PORTS
+arquisoft-manejador_cloud-1      arquisoft-manejador_cloud         "./entrypoint.sh"        manejador_cloud      44 seconds ago   Up 32 seconds (healthy)   0.0.0.0:8002->8002/tcp, [::]:8002->8002/tcp
+arquisoft-manejador_reportes-1   arquisoft-manejador_reportes      "./entrypoint.sh"        manejador_reportes   44 seconds ago   Up 30 seconds (healthy)   0.0.0.0:8003->8003/tcp, [::]:8003->8003/tcp
+arquisoft-manejador_usuarios-1   arquisoft-manejador_usuarios      "./entrypoint.sh"        manejador_usuarios   44 seconds ago   Up 30 seconds (healthy)   0.0.0.0:8001->8001/tcp, [::]:8001->8001/tcp
+arquisoft-postgres_cloud-1       postgres:15-alpine                "docker-entrypoint.s…"   postgres_cloud       44 seconds ago   Up 43 seconds (healthy)   5432/tcp
+arquisoft-postgres_reportes-1    postgres:15-alpine                "docker-entrypoint.s…"   postgres_reportes    44 seconds ago   Up 43 seconds (healthy)   5432/tcp
+arquisoft-postgres_usuarios-1    postgres:15-alpine                "docker-entrypoint.s…"   postgres_usuarios    44 seconds ago   Up 43 seconds (healthy)   5432/tcp
+arquisoft-rabbitmq-1             rabbitmq:3.12-management-alpine   "docker-entrypoint.s…"   rabbitmq             44 seconds ago   Up 43 seconds (healthy)   4369/tcp, 5671-5672/tcp, 15671/tcp, 15691-15692/tcp, 25672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+arquisoft-redis-1                redis:7-alpine                    "docker-entrypoint.s…"   redis                44 seconds ago   Up 43 seconds (healthy)   6379/tcp
+arquisoft-reportes_worker-1      arquisoft-reportes_worker         "./entrypoint_worker…"   reportes_worker      44 seconds ago   Up 30 seconds (healthy)   8003/tcp
+=== 3. Health checks ===
+{"service":"manejador_usuarios","status":"healthy","checks":{"database":"ok","redis":"ok"}}
+{"service":"manejador_cloud","status":"healthy","checks":{"database":"ok","redis":"ok"}}
+{"service":"manejador_reportes","status":"healthy","checks":{"database":"ok","redis":"ok","rabbitmq":"ok"}}
+=== 4. Verify seed data ===
+time="2026-04-09T19:43:48-05:00" level=warning msg="/home/david/Documents/arquisoft/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+[{'id': UUID('550e8400-e29b-41d4-a716-446655440011'), 'activa': True}, {'id': UUID('550e8400-e29b-41d4-a716-446655440012'), 'activa': True}, {'id': UUID('550e8400-e29b-41d4-a716-446655440013'), 'activa': True}, {'id': UUID('550e8400-e29b-41d4-a716-446655440014'), 'activa': True}, {'id': UUID('550e8400-e29b-41d4-a716-446655440015'), 'activa': True}]
+=== 5. Verify the validate endpoint ===
+{"cuenta_cloud_id":"550e8400-e29b-41d4-a716-446655440011","activa":true,"proveedor_tipo":"AWS"}
+=== 6. Test ASR16 ===
+{"error":"Cuenta cloud 550e8400-e29b-41d4-a716-446655440011 no está activa o no existe en Resource Service."}
+HTTP_STATUS:422
+=== 7. Check manejador_usuarios logs ===
+time="2026-04-09T19:43:49-05:00" level=warning msg="/home/david/Documents/arquisoft/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+manejador_usuarios-1  | Waiting for PostgreSQL...
+manejador_usuarios-1  | PostgreSQL ready
+manejador_usuarios-1  | Running migrations...
+manejador_usuarios-1  | Operations to perform:
+manejador_usuarios-1  |   Apply all migrations: auth, contenttypes, projects
+manejador_usuarios-1  | Running migrations:
+manejador_usuarios-1  |   Applying contenttypes.0001_initial... OK
+manejador_usuarios-1  |   Applying contenttypes.0002_remove_content_type_name... OK
+manejador_usuarios-1  |   Applying auth.0001_initial... OK
+manejador_usuarios-1  |   Applying auth.0002_alter_permission_name_max_length... OK
+manejador_usuarios-1  |   Applying auth.0003_alter_user_email_max_length... OK
+manejador_usuarios-1  |   Applying auth.0004_alter_user_username_opts... OK
+manejador_usuarios-1  |   Applying auth.0005_alter_user_last_login_null... OK
+manejador_usuarios-1  |   Applying auth.0006_require_contenttypes_0002... OK
+manejador_usuarios-1  |   Applying auth.0007_alter_validators_add_error_messages... OK
+manejador_usuarios-1  |   Applying auth.0008_alter_user_username_max_length... OK
+manejador_usuarios-1  |   Applying auth.0009_alter_user_last_name_max_length... OK
+manejador_usuarios-1  |   Applying auth.0010_alter_group_name_max_length... OK
+manejador_usuarios-1  |   Applying auth.0011_update_proxy_permissions... OK
+manejador_usuarios-1  |   Applying auth.0012_alter_user_first_name_max_length... OK
+manejador_usuarios-1  |   Applying projects.0001_initial... OK
+manejador_usuarios-1  |   Applying projects.0002_empleado... OK
+manejador_usuarios-1  | Loading seeds...
+manejador_usuarios-1  | INSERT 0 3
+manejador_usuarios-1  | INSERT 0 50
+manejador_usuarios-1  | INSERT 0 1000
+manejador_usuarios-1  | INSERT 0 5000
+manejador_usuarios-1  | INSERT 0 500
+manejador_usuarios-1  | Starting gunicorn...
+manejador_usuarios-1  | [2026-04-10 00:43:21 +0000] [1] [INFO] Starting gunicorn 22.0.0
+manejador_usuarios-1  | [2026-04-10 00:43:21 +0000] [1] [INFO] Listening at: http://0.0.0.0:8001 (1)
+manejador_usuarios-1  | [2026-04-10 00:43:21 +0000] [1] [INFO] Using worker: gthread
+manejador_usuarios-1  | [2026-04-10 00:43:21 +0000] [11] [INFO] Booting worker with pid: 11
+manejador_usuarios-1  | [2026-04-10 00:43:21 +0000] [12] [INFO] Booting worker with pid: 12
+manejador_usuarios-1  | [2026-04-10 00:43:21 +0000] [19] [INFO] Booting worker with pid: 19
+manejador_usuarios-1  | [2026-04-10 00:43:21 +0000] [21] [INFO] Booting worker with pid: 21
+manejador_usuarios-1  | 127.0.0.1 - - [10/Apr/2026:00:43:22 +0000] "GET /health HTTP/1.1" 200 91 "-" "curl/8.14.1"
+manejador_usuarios-1  | 172.22.0.1 - - [10/Apr/2026:00:43:47 +0000] "GET /health HTTP/1.1" 200 91 "-" "curl/8.5.0"
+manejador_usuarios-1  | {"asctime": "2026-04-10 00:43:49,049", "name": "projects.resource_client", "levelname": "WARNING", "message": "Resource Service returned 400 for CuentaCloud 550e8400-e29b-41d4-a716-446655440011", "pathname": "/app/projects/resource_client.py", "lineno": 39}
+manejador_usuarios-1  | {"asctime": "2026-04-10 00:43:49,050", "name": "django.request", "levelname": "WARNING", "message": "Unprocessable Entity: /projects", "pathname": "/usr/local/lib/python3.11/site-packages/django/utils/log.py", "lineno": 241, "status_code": 422, "request": "<WSGIRequest: POST '/projects'>"}
+manejador_usuarios-1  | 172.22.0.1 - - [10/Apr/2026:00:43:49 +0000] "POST /projects HTTP/1.1" 422 110 "-" "curl/8.5.0"
+=== 8. Test ASR17 ===
+{"accepted":50,"failed":0,"events":[{"evento_id":"b177815c-1298-4a9f-a7ac-da8729502406","task_id":"b177815c-1298-4a9f-a7ac-da8729502406"},{"evento_id":"e9606308-56d1-4e4c-9231-05f2c88027c4","task_id":"e9606308-56d1-4e4c-9231-05f2c88027c4"},{"evento_id":"668a86d4-a68a-4e52-8d85-6e6ab6c5505f","task_id":"668a86d4-a68a-4e52-8d85-6e6ab6c5505f"},{"evento_id":"f2d7f03f-f04e-4dd5-a40e-0c2f2b68ee4d","task_id":"f2d7f03f-f04e-4dd5-a40e-0c2f2b68ee4d"},{"evento_id":"e57bbdef-eee7-4065-8e00-bc691bb0bee5","task_id":"e57bbdef-eee7-4065-8e00-bc691bb0bee5"},{"evento_id":"89d5c6d8-9908-4e86-ae1c-01c4007c6851","task_id":"89d5c6d8-9908-4e86-ae1c-01c4007c6851"},{"evento_id":"9db2e59d-65c3-4f8b-a8bd-2aa798989d04","task_id":"9db2e59d-65c3-4f8b-a8bd-2aa798989d04"},{"evento_id":"c0364d24-ad46-488a-861b-aa2224b3fe9d","task_id":"c0364d24-ad46-488a-861b-aa2224b3fe9d"},{"evento_id":"c9a09cfb-2f16-4c64-bd6f-77efcd580a85","task_id":"c9a09cfb-2f16-4c64-bd6f-77efcd580a85"},{"evento_id":"6a03e9c8-e45b-4412-a7e2-5b7f364f60e7","task_id":"6a03e9c8-e45b-4412-a7e2-5b7f364f60e7"},{"evento_id":"a6c603e0-d8f4-4781-9651-ab7e032e9387","task_id":"a6c603e0-d8f4-4781-9651-ab7e032e9387"},{"evento_id":"086895a3-2598-44ff-b3b1-823eec21cc27","task_id":"086895a3-2598-44ff-b3b1-823eec21cc27"},{"evento_id":"9093d89d-534d-4d22-8fca-7950bd4ef7b4","task_id":"9093d89d-534d-4d22-8fca-7950bd4ef7b4"},{"evento_id":"a2cf4f9c-b5a6-4cf0-b562-c85d4748c17f","task_id":"a2cf4f9c-b5a6-4cf0-b562-c85d4748c17f"},{"evento_id":"25f07a95-8d7e-4369-9e99-358931508dfa","task_id":"25f07a95-8d7e-4369-9e99-358931508dfa"},{"evento_id":"1d639e68-4b83-46d9-bb5d-5077fa1ec467","task_id":"1d639e68-4b83-46d9-bb5d-5077fa1ec467"},{"evento_id":"9feef1ca-5225-41ec-bb76-8c16c61edf2e","task_id":"9feef1ca-5225-41ec-bb76-8c16c61edf2e"},{"evento_id":"e99956e0-082a-465d-97f7-48e4007dfa74","task_id":"e99956e0-082a-465d-97f7-48e4007dfa74"},{"evento_id":"07e87f7a-3ca3-42fa-9038-e636b4a67415","task_id":"07e87f7a-3ca3-42fa-9038-e636b4a67415"},{"evento_id":"71ac869c-c1c4-4088-a56f-fba60d686d48","task_id":"71ac869c-c1c4-4088-a56f-fba60d686d48"},{"evento_id":"e9abf160-848e-43b7-a3df-7e938e015291","task_id":"e9abf160-848e-43b7-a3df-7e938e015291"},{"evento_id":"729a3075-2fa8-49fb-bc78-484c4fa3a7fb","task_id":"729a3075-2fa8-49fb-bc78-484c4fa3a7fb"},{"evento_id":"83d1ff68-7f19-42bc-b99e-eb8eaea2a8cd","task_id":"83d1ff68-7f19-42bc-b99e-eb8eaea2a8cd"},{"evento_id":"74688df5-9553-4cfd-b696-88d27d329426","task_id":"74688df5-9553-4cfd-b696-88d27d329426"},{"evento_id":"380e128b-70dc-4d32-aa74-0e758d77945f","task_id":"380e128b-70dc-4d32-aa74-0e758d77945f"},{"evento_id":"f3d24fae-49b2-4cfc-85d2-e3d468ce9e8d","task_id":"f3d24fae-49b2-4cfc-85d2-e3d468ce9e8d"},{"evento_id":"bcda3e84-cd1f-42e9-873f-657a7d4f050d","task_id":"bcda3e84-cd1f-42e9-873f-657a7d4f050d"},{"evento_id":"7e263bb0-fe50-47d8-8f9f-5068a8659123","task_id":"7e263bb0-fe50-47d8-8f9f-5068a8659123"},{"evento_id":"0dce417f-3491-4f35-a039-1af3b49bcd4c","task_id":"0dce417f-3491-4f35-a039-1af3b49bcd4c"},{"evento_id":"c0e77dce-e24e-4d75-906e-ee850c2d918a","task_id":"c0e77dce-e24e-4d75-906e-ee850c2d918a"},{"evento_id":"5516b4d9-bf23-424d-af96-1a2dcdf6abc2","task_id":"5516b4d9-bf23-424d-af96-1a2dcdf6abc2"},{"evento_id":"4099ef2e-b618-4b9e-8314-4f5f32626236","task_id":"4099ef2e-b618-4b9e-8314-4f5f32626236"},{"evento_id":"ad77551c-646c-492e-8238-ec55736ddd1b","task_id":"ad77551c-646c-492e-8238-ec55736ddd1b"},{"evento_id":"6aadd0f9-892e-4390-90ed-40236f2e9253","task_id":"6aadd0f9-892e-4390-90ed-40236f2e9253"},{"evento_id":"5d7e611c-36f1-4283-920e-29b224f72c68","task_id":"5d7e611c-36f1-4283-920e-29b224f72c68"},{"evento_id":"99f2efb4-9898-4a87-9c1c-7ad0513faafd","task_id":"99f2efb4-9898-4a87-9c1c-7ad0513faafd"},{"evento_id":"b728f9fe-aa02-4eb8-9ee9-8c6f7bdee7b3","task_id":"b728f9fe-aa02-4eb8-9ee9-8c6f7bdee7b3"},{"evento_id":"8db9586c-52a6-44e6-b107-97c38d840586","task_id":"8db9586c-52a6-44e6-b107-97c38d840586"},{"evento_id":"95b32aed-9d28-44db-a6bf-1c19f0d0e79b","task_id":"95b32aed-9d28-44db-a6bf-1c19f0d0e79b"},{"evento_id":"cb75224b-5b1a-438b-a94b-a59b70078863","task_id":"cb75224b-5b1a-438b-a94b-a59b70078863"},{"evento_id":"faadd525-c6ae-4f1c-997e-48f6c786d83e","task_id":"faadd525-c6ae-4f1c-997e-48f6c786d83e"},{"evento_id":"85d12749-657b-44a2-b393-c53f7f35101f","task_id":"85d12749-657b-44a2-b393-c53f7f35101f"},{"evento_id":"13d36603-db8c-407e-9da1-6e61faf4b2f7","task_id":"13d36603-db8c-407e-9da1-6e61faf4b2f7"},{"evento_id":"8af0ecf8-992c-4a46-a56c-f85d66d508f8","task_id":"8af0ecf8-992c-4a46-a56c-f85d66d508f8"},{"evento_id":"51aa92fc-c101-4dc5-8cf9-01d824204ae5","task_id":"51aa92fc-c101-4dc5-8cf9-01d824204ae5"},{"evento_id":"4e008e19-d3b5-4e6c-8773-57037fbf6ca3","task_id":"4e008e19-d3b5-4e6c-8773-57037fbf6ca3"},{"evento_id":"41476526-28b5-4649-8b45-cca8586f13a4","task_id":"41476526-28b5-4649-8b45-cca8586f13a4"},{"evento_id":"f9c90f4a-a113-4fa3-9526-1aa1af7bc426","task_id":"f9c90f4a-a113-4fa3-9526-1aa1af7bc426"},{"evento_id":"a8747851-60af-4c0d-b238-746f158ac7c5","task_id":"a8747851-60af-4c0d-b238-746f158ac7c5"},{"evento_id":"60b77946-bb6c-461b-b14d-a6dbd4439826","task_id":"60b77946-bb6c-461b-b14d-a6dbd4439826"}],"errors":[]}
+HTTP_STATUS:202
+=== 9. Verify Celery worker ===
+time="2026-04-09T19:43:49-05:00" level=warning msg="/home/david/Documents/arquisoft/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+reportes_worker-1  |  -------------- [queues]
+reportes_worker-1  |                 .> bite.analisis    exchange=bite_events(topic) key=analisis.*
+reportes_worker-1  |                 .> bite.eventos     exchange=bite_events(topic) key=evento.#
+reportes_worker-1  |                 .> bite.proyectos   exchange=bite_events(topic) key=proyecto.*
+reportes_worker-1  |                 .> bite.reportes    exchange=bite_events(topic) key=reporte.*
+reportes_worker-1  | 
+reportes_worker-1  | [tasks]
+reportes_worker-1  |   . events.tasks.ejecutar_analisis
+reportes_worker-1  |   . events.tasks.enviar_notificacion
+reportes_worker-1  |   . events.tasks.generar_reporte
+reportes_worker-1  |   . events.tasks.procesar_evento_batch
+=== 10. Check reportes logs ===
+time="2026-04-09T19:43:49-05:00" level=warning msg="/home/david/Documents/arquisoft/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,290", "name": "pika.adapters.utils.connection_workflow", "levelname": "INFO", "message": "AMQPConnector - reporting success: <SelectConnection OPEN transport=<pika.adapters.utils.io_services_utils._AsyncPlaintextTransport object at 0x7b1e6a4247d0> params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/connection_workflow.py", "lineno": 293}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,290", "name": "pika.adapters.utils.connection_workflow", "levelname": "INFO", "message": "AMQPConnectionWorkflow - reporting success: <SelectConnection OPEN transport=<pika.adapters.utils.io_services_utils._AsyncPlaintextTransport object at 0x7b1e6a4247d0> params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/connection_workflow.py", "lineno": 725}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,290", "name": "pika.adapters.blocking_connection", "levelname": "INFO", "message": "Connection workflow succeeded: <SelectConnection OPEN transport=<pika.adapters.utils.io_services_utils._AsyncPlaintextTransport object at 0x7b1e6a4247d0> params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/blocking_connection.py", "lineno": 453}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,290", "name": "pika.adapters.blocking_connection", "levelname": "INFO", "message": "Closing connection (200): Normal shutdown", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/blocking_connection.py", "lineno": 802}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,290", "name": "pika.connection", "levelname": "INFO", "message": "Closing connection (200): 'Normal shutdown'", "pathname": "/usr/local/lib/python3.11/site-packages/pika/connection.py", "lineno": 1316}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,291", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "Aborting transport connection: state=1; <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 36872), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 731}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,291", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "_AsyncTransportBase._initate_abort(): Initiating abrupt asynchronous transport shutdown: state=1; error=None; <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 36872), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 904}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,291", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "Deactivating transport: state=1; <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 36872), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 869}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,291", "name": "pika.connection", "levelname": "INFO", "message": "AMQP stack terminated, failed to connect, or aborted: opened=True, error-arg=None; pending-error=ConnectionClosedByClient: (200) 'Normal shutdown'", "pathname": "/usr/local/lib/python3.11/site-packages/pika/connection.py", "lineno": 2017}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,292", "name": "pika.connection", "levelname": "INFO", "message": "Stack terminated due to ConnectionClosedByClient: (200) 'Normal shutdown'", "pathname": "/usr/local/lib/python3.11/site-packages/pika/connection.py", "lineno": 2086}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,292", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "Closing transport socket and unlinking: state=3; <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 36872), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 882}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:27,292", "name": "pika.adapters.blocking_connection", "levelname": "INFO", "message": "User-initiated close: result=BlockingConnection__OnClosedArgs(connection=<SelectConnection CLOSED transport=None params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>, error=ConnectionClosedByClient: (200) 'Normal shutdown')", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/blocking_connection.py", "lineno": 525}
+manejador_reportes-1  | 127.0.0.1 - - [10/Apr/2026:00:43:27 +0000] "GET /health HTTP/1.1" 200 107 "-" "curl/8.14.1"
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,954", "name": "pika.adapters.utils.connection_workflow", "levelname": "INFO", "message": "Pika version 1.3.2 connecting to ('172.22.0.6', 5672)", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/connection_workflow.py", "lineno": 179}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,955", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "Socket connected: <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 59510), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 345}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,955", "name": "pika.adapters.utils.connection_workflow", "levelname": "INFO", "message": "Streaming transport linked up: (<pika.adapters.utils.io_services_utils._AsyncPlaintextTransport object at 0x7b1e6a427910>, _StreamingProtocolShim: <SelectConnection PROTOCOL transport=<pika.adapters.utils.io_services_utils._AsyncPlaintextTransport object at 0x7b1e6a427910> params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>).", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/connection_workflow.py", "lineno": 428}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,957", "name": "pika.adapters.utils.connection_workflow", "levelname": "INFO", "message": "AMQPConnector - reporting success: <SelectConnection OPEN transport=<pika.adapters.utils.io_services_utils._AsyncPlaintextTransport object at 0x7b1e6a427910> params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/connection_workflow.py", "lineno": 293}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,957", "name": "pika.adapters.utils.connection_workflow", "levelname": "INFO", "message": "AMQPConnectionWorkflow - reporting success: <SelectConnection OPEN transport=<pika.adapters.utils.io_services_utils._AsyncPlaintextTransport object at 0x7b1e6a427910> params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/connection_workflow.py", "lineno": 725}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,957", "name": "pika.adapters.blocking_connection", "levelname": "INFO", "message": "Connection workflow succeeded: <SelectConnection OPEN transport=<pika.adapters.utils.io_services_utils._AsyncPlaintextTransport object at 0x7b1e6a427910> params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/blocking_connection.py", "lineno": 453}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,957", "name": "pika.adapters.blocking_connection", "levelname": "INFO", "message": "Closing connection (200): Normal shutdown", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/blocking_connection.py", "lineno": 802}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,957", "name": "pika.connection", "levelname": "INFO", "message": "Closing connection (200): 'Normal shutdown'", "pathname": "/usr/local/lib/python3.11/site-packages/pika/connection.py", "lineno": 1316}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,958", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "Aborting transport connection: state=1; <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 59510), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 731}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,958", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "_AsyncTransportBase._initate_abort(): Initiating abrupt asynchronous transport shutdown: state=1; error=None; <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 59510), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 904}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,958", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "Deactivating transport: state=1; <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 59510), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 869}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,958", "name": "pika.connection", "levelname": "INFO", "message": "AMQP stack terminated, failed to connect, or aborted: opened=True, error-arg=None; pending-error=ConnectionClosedByClient: (200) 'Normal shutdown'", "pathname": "/usr/local/lib/python3.11/site-packages/pika/connection.py", "lineno": 2017}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,958", "name": "pika.connection", "levelname": "INFO", "message": "Stack terminated due to ConnectionClosedByClient: (200) 'Normal shutdown'", "pathname": "/usr/local/lib/python3.11/site-packages/pika/connection.py", "lineno": 2086}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,958", "name": "pika.adapters.utils.io_services_utils", "levelname": "INFO", "message": "Closing transport socket and unlinking: state=3; <socket.socket fd=16, family=2, type=1, proto=6, laddr=('172.22.0.10', 59510), raddr=('172.22.0.6', 5672)>", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/utils/io_services_utils.py", "lineno": 882}
+manejador_reportes-1  | {"asctime": "2026-04-10 00:43:47,958", "name": "pika.adapters.blocking_connection", "levelname": "INFO", "message": "User-initiated close: result=BlockingConnection__OnClosedArgs(connection=<SelectConnection CLOSED transport=None params=<URLParameters host=rabbitmq port=5672 virtual_host=bite_vhost ssl=False>>, error=ConnectionClosedByClient: (200) 'Normal shutdown')", "pathname": "/usr/local/lib/python3.11/site-packages/pika/adapters/blocking_connection.py", "lineno": 525}
+manejador_reportes-1  | 172.22.0.1 - - [10/Apr/2026:00:43:47 +0000] "GET /health HTTP/1.1" 200 107 "-" "curl/8.5.0"
+manejador_reportes-1  | 172.22.0.1 - - [10/Apr/2026:00:43:49 +0000] "POST /events/batch HTTP/1.1" 202 5149 "-" "curl/8.5.0"
