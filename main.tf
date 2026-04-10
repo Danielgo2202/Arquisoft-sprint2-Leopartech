@@ -377,7 +377,7 @@ resource "aws_instance" "redis" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name    = "CacheServer-Redis-Temporal"
+    Name    = "${var.project_prefix}-redis"
     Role    = "cache"
     Service = "redis"
   })
@@ -415,7 +415,7 @@ resource "aws_instance" "rabbitmq" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name    = "MessageBroker-RabbitMQ-Async"
+    Name    = "${var.project_prefix}-rabbitmq"
     Role    = "broker"
     Service = "rabbitmq"
   })
@@ -459,7 +459,7 @@ resource "aws_instance" "postgres_usuarios" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name    = "Database-Postgres-Usuarios"
+    Name    = "${var.project_prefix}-postgres-usuarios"
     Role    = "database"
     Service = "usuarios"
   })
@@ -498,7 +498,7 @@ resource "aws_instance" "postgres_cloud" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name    = "Database-Postgres-Cloud"
+    Name    = "${var.project_prefix}-postgres-cloud"
     Role    = "database"
     Service = "cloud"
   })
@@ -537,7 +537,7 @@ resource "aws_instance" "postgres_reportes" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name    = "Database-Postgres-Reportes"
+    Name    = "${var.project_prefix}-postgres-reportes"
     Role    = "database"
     Service = "reportes"
   })
@@ -618,7 +618,7 @@ resource "aws_instance" "manejador_usuarios" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name    = "AppServer-ManejadorUsuarios"
+    Name    = "${var.project_prefix}-manejador-usuarios"
     Role    = "app-server"
     Service = "usuarios"
   })
@@ -683,7 +683,7 @@ resource "aws_instance" "manejador_cloud" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name    = "AppServer-ManejadorCloud-Recursos"
+    Name    = "${var.project_prefix}-manejador-cloud"
     Role    = "app-server"
     Service = "cloud"
   })
@@ -756,7 +756,7 @@ resource "aws_instance" "manejador_reportes" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name    = "AppServer-ManejadorReportes"
+    Name    = "${var.project_prefix}-manejador-reportes"
     Role    = "app-server"
     Service = "reportes"
   })
@@ -838,7 +838,7 @@ resource "aws_instance" "worker_pool" {
   EOT
 
   tags = merge(local.common_tags, {
-    Name = "WorkerNode-Celery-Asincrono-${each.key}"
+    Name = "${var.project_prefix}-worker-${each.key}"
     Role = "worker"
   })
 }
