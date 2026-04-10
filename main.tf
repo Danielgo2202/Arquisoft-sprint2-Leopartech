@@ -41,7 +41,7 @@ variable "allowed_ssh_cidr" {
 variable "repository" {
   description = "Git repository URL (HTTPS) containing the Django microservices"
   type        = string
-  default     = "TODO_REPO_URL"
+  default     = "https://github.com/dcantorni/Arquisoft-sprint2-Leopartech"
 }
 
 variable "branch" {
