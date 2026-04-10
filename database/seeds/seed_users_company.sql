@@ -1,4 +1,12 @@
--- 1. Crear 50 empresas
+-- 0. Crear empresas con UUIDs específicos usados por JMeter (projects_payload.json y events_batch.json)
+INSERT INTO empresas (id, nombre, nit, activa, creada_en, actualizada_en)
+VALUES
+    ('550e8400-e29b-41d4-a716-446655440001', 'BITE Empresa Principal', 'NIT-9000000001', TRUE, NOW(), NOW()),
+    ('550e8400-e29b-41d4-a716-446655440002', 'BITE Empresa Secundaria', 'NIT-9000000002', TRUE, NOW(), NOW()),
+    ('550e8400-e29b-41d4-a716-446655440003', 'BITE Empresa Terciaria', 'NIT-9000000003', TRUE, NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+-- 1. Crear 50 empresas adicionales con UUIDs aleatorios
 INSERT INTO empresas (id, nombre, nit, activa, creada_en, actualizada_en)
 SELECT
     gen_random_uuid(),

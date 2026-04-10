@@ -5,7 +5,7 @@ echo "Waiting for RabbitMQ..."
 until python -c "
 import os, pika
 try:
-    params = pika.URLParameters(os.environ.get('RABBITMQ_URL','amqp://guest:guest@rabbitmq:5672/'))
+    params = pika.URLParameters(os.environ.get('RABBITMQ_URL','amqp://bite:bite_pass@rabbitmq:5672/bite_vhost'))
     conn = pika.BlockingConnection(params)
     conn.close()
     print('RabbitMQ ready')
@@ -21,11 +21,11 @@ until python -c "
 import os, psycopg2
 try:
     psycopg2.connect(
-        dbname=os.environ.get('DB_NAME','reportes_db'),
-        user=os.environ.get('DB_USER','postgres'),
-        password=os.environ.get('DB_PASSWORD',''),
-        host=os.environ.get('DB_HOST','localhost'),
-        port=os.environ.get('DB_PORT','5432')
+        dbname=os.environ.get('DATABASE_NAME','reportes_db'),
+        user=os.environ.get('DATABASE_USER','admin'),
+        password=os.environ.get('DATABASE_PASSWORD','admin123'),
+        host=os.environ.get('DATABASE_HOST','localhost'),
+        port=os.environ.get('DATABASE_PORT','5432')
     )
 except Exception as e:
     print(f'PostgreSQL not ready: {e}')

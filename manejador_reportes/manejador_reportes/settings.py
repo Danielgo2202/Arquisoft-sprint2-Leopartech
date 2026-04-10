@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from kombu import Exchange, Queue, binding
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,12 +26,12 @@ WSGI_APPLICATION = 'manejador_reportes.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'reportes_db'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-        'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '60')),
+        'HOST': os.environ.get('DATABASE_HOST', 'localhost'),
+        'PORT': os.environ.get('DATABASE_PORT', '5432'),
+        'NAME': os.environ.get('DATABASE_NAME', 'reportes_db'),
+        'USER': os.environ.get('DATABASE_USER', 'admin'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD', 'admin123'),
+        'CONN_MAX_AGE': 60,
         'OPTIONS': {'connect_timeout': 10},
     }
 }
@@ -64,17 +65,59 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get('CELERY_TASK_SOFT_TIME_LIMIT', '120'))
 CELERY_TASK_TIME_LIMIT = int(os.environ.get('CELERY_TASK_TIME_LIMIT', '180'))
-CELERY_WORKER_CONCURRENCY = int(os.environ.get('CELERY_WORKER_CONCURRENCY', '8'))
+CELERY_WORKER_CONCURRENCY = int(os.environ.get('CELERY_WORKER_CONCURRENCY', '4'))
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
-# Named queues for routing (architecture.md §4.1 Scalability Experiment)
+# ── RabbitMQ topic exchange – same exchange manejador_usuarios publishes to ──
+# architecture.md §4.1 Scalability Experiment – bite_events topic exchange
+#
+# Single queue 'bite.eventos' bound to all routing-key patterns so that
+# workers started without --queues (e.g. Terraform) use the default queue
+# and still receive every event type.
+_BITE_EXCHANGE = Exchange('bite_events', type='topic', durable=True)
+
+CELERY_DEFAULT_QUEUE = 'bite.eventos'
+CELERY_QUEUES = (
+    Queue(
+        'bite.eventos',
+        bindings=[
+            binding(_BITE_EXCHANGE, routing_key='evento.#'),
+            binding(_BITE_EXCHANGE, routing_key='proyecto.*'),
+            binding(_BITE_EXCHANGE, routing_key='analisis.*'),
+            binding(_BITE_EXCHANGE, routing_key='reporte.*'),
+        ],
+        durable=True,
+    ),
+)
+
+# All tasks route to bite.eventos on the bite_events exchange
 CELERY_TASK_ROUTES = {
-    'events.tasks.procesar_proyecto_creado': {'queue': 'celery'},
-    'events.tasks.ejecutar_analisis': {'queue': 'analisis'},
-    'events.tasks.generar_reporte': {'queue': 'reportes'},
-    'events.tasks.enviar_notificacion': {'queue': 'celery'},
-    'events.tasks.procesar_evento_batch': {'queue': 'celery'},
+    'events.tasks.procesar_evento_batch': {
+        'queue': 'bite.eventos',
+        'exchange': 'bite_events',
+        'routing_key': 'evento.batch',
+    },
+    'events.tasks.procesar_proyecto_creado': {
+        'queue': 'bite.eventos',
+        'exchange': 'bite_events',
+        'routing_key': 'proyecto.creado',
+    },
+    'events.tasks.generar_reporte': {
+        'queue': 'bite.eventos',
+        'exchange': 'bite_events',
+        'routing_key': 'reporte.solicitado',
+    },
+    'events.tasks.enviar_notificacion': {
+        'queue': 'bite.eventos',
+        'exchange': 'bite_events',
+        'routing_key': 'evento.notificacion',
+    },
+    'events.tasks.ejecutar_analisis': {
+        'queue': 'bite.eventos',
+        'exchange': 'bite_events',
+        'routing_key': 'analisis.ejecutar',
+    },
 }
 
 # ── RabbitMQ (raw AMQP consumer) ───────────────────────────────────────────

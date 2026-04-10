@@ -128,11 +128,18 @@ services:
     env_file:
       - ./manejador_usuarios/.env.example
     environment:
-      DB_HOST: ${DB_HOST:-postgres_usuarios}
-      DB_NAME: usuarios_db
+      DATABASE_HOST: ${DATABASE_HOST:-postgres_usuarios}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-usuarios_db}
+      DATABASE_USER: ${DATABASE_USER:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
       RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-http://manejador_cloud:8002}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      DEBUG: ${DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-a-long-random-string}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
     depends_on:
       postgres_usuarios:
         condition: service_healthy
@@ -162,9 +169,15 @@ services:
     env_file:
       - ./manejador_cloud/.env.example
     environment:
-      DB_HOST: ${DB_HOST:-postgres_cloud}
-      DB_NAME: cloud_db
+      DATABASE_HOST: ${DATABASE_HOST:-postgres_cloud}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-cloud_db}
+      DATABASE_USER: ${DATABASE_USER:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      DEBUG: ${DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-a-long-random-string}
     depends_on:
       postgres_cloud:
         condition: service_healthy
@@ -192,12 +205,19 @@ services:
     env_file:
       - ./manejador_reportes/.env.example
     environment:
-      DB_HOST: ${DB_HOST:-postgres_reportes}
-      DB_NAME: reportes_db
+      DATABASE_HOST: ${DATABASE_HOST:-postgres_reportes}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-reportes_db}
+      DATABASE_USER: ${DATABASE_USER:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/2}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/3}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      DEBUG: ${DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-a-long-random-string}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
     depends_on:
       postgres_reportes:
         condition: service_healthy
@@ -220,6 +240,7 @@ services:
 
   # ── Manejador Reportes – Celery Worker (auto-scaling pool) ──────────────────
   # architecture.md §4.1 – Worker Pool (Auto-scaling)
+  # Concurrency controlled via CELERY_WORKER_CONCURRENCY env var (default: 4)
   reportes_worker:
     build:
       context: ./manejador_reportes
@@ -228,13 +249,18 @@ services:
     env_file:
       - ./manejador_reportes/.env.example
     environment:
-      DB_HOST: ${DB_HOST:-postgres_reportes}
-      DB_NAME: reportes_db
+      DATABASE_HOST: ${DATABASE_HOST:-postgres_reportes}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-reportes_db}
+      DATABASE_USER: ${DATABASE_USER:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/2}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/3}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
       CELERY_WORKER_CONCURRENCY: "${CELERY_WORKER_CONCURRENCY:-4}"
+      DEBUG: ${DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-a-long-random-string}
     depends_on:
       postgres_reportes:
         condition: service_healthy
@@ -246,32 +272,9 @@ services:
       - bite_network
     restart: unless-stopped
     logging: *default-logging
-    deploy:
-      replicas: 2  # Scale up during load tests
-
-  # ── Manejador Reportes – pika Consumer (Procesador de Eventos) ──────────────
-  reportes_consumer:
-    build:
-      context: ./manejador_reportes
-      dockerfile: Dockerfile
-    command: ["./entrypoint_consumer.sh"]
-    env_file:
-      - ./manejador_reportes/.env.example
-    environment:
-      DB_HOST: ${DB_HOST:-postgres_reportes}
-      DB_NAME: reportes_db
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/2}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/3}
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://bite:bite_pass@rabbitmq:5672/bite_vhost}
-    depends_on:
-      postgres_reportes:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - bite_network
-    restart: unless-stopped
-    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A manejador_reportes.celery inspect ping -d worker@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

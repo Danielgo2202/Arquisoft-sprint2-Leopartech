@@ -6,6 +6,7 @@ from django.db import connection, OperationalError
 
 from .serializers import ProyectoCreateSerializer, ProyectoResponseSerializer
 from .services import ProyectoService
+from .resource_client import CloudServiceUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,12 @@ class ProyectoCreateView(APIView):
             proyecto = ProyectoService.crear_proyecto(serializer.validated_data)
         except ValueError as exc:
             return Response({'error': str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except CloudServiceUnavailable as exc:
+            logger.error("Resource Service unavailable: %s", exc)
+            return Response(
+                {'error': 'Servicio de recursos cloud no disponible. Intente más tarde.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except Exception:
             logger.exception("Unexpected error creating proyecto")
             return Response(

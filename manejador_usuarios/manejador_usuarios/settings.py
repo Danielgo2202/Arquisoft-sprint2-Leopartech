@@ -25,12 +25,12 @@ WSGI_APPLICATION = 'manejador_usuarios.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'usuarios_db'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-        'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '60')),
+        'HOST': os.environ.get('DATABASE_HOST', 'localhost'),
+        'PORT': os.environ.get('DATABASE_PORT', '5432'),
+        'NAME': os.environ.get('DATABASE_NAME', 'usuarios_db'),
+        'USER': os.environ.get('DATABASE_USER', 'admin'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD', 'admin123'),
+        'CONN_MAX_AGE': 60,
         'OPTIONS': {'connect_timeout': 10},
     }
 }
@@ -48,6 +48,12 @@ CACHES = {
         'TIMEOUT': int(os.environ.get('REDIS_CACHE_TTL', '300')),
     }
 }
+
+# Email backend (terraform injects this; default is console for local dev)
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend',
+)
 
 # RabbitMQ
 RABBITMQ_URL = os.environ.get('RABBITMQ_URL', 'amqp://bite:bite_pass@rabbitmq:5672/bite_vhost')

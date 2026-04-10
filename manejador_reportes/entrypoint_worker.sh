@@ -5,7 +5,7 @@ echo "Waiting for RabbitMQ..."
 until python -c "
 import os, pika
 try:
-    params = pika.URLParameters(os.environ.get('RABBITMQ_URL','amqp://guest:guest@rabbitmq:5672/'))
+    params = pika.URLParameters(os.environ.get('RABBITMQ_URL','amqp://bite:bite_pass@rabbitmq:5672/bite_vhost'))
     conn = pika.BlockingConnection(params)
     conn.close()
     print('RabbitMQ ready')
@@ -17,8 +17,9 @@ except Exception as e:
 done
 
 echo "Starting Celery worker (manejador_reportes)..."
+# No --queues: Celery uses CELERY_DEFAULT_QUEUE from settings ('bite.eventos')
+# This matches the terraform worker_pool command exactly.
 exec celery -A manejador_reportes.celery worker \
     --loglevel=info \
-    --concurrency="${CELERY_WORKER_CONCURRENCY:-8}" \
-    --queues=celery,analisis,reportes \
+    --concurrency="${CELERY_WORKER_CONCURRENCY:-4}" \
     --hostname=worker@%h

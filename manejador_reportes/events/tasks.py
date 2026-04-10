@@ -8,7 +8,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 from .services import IdempotencyService, AnalisisService, ReporteService
-from .models import Analisis, EjecucionAnalisis, OportunidadAhorro, Notificacion
+from .models import Analisis, EjecucionAnalisis, Alerta, OportunidadAhorro, Notificacion
 
 logger = logging.getLogger(__name__)
 
@@ -235,23 +235,117 @@ def enviar_notificacion(self, notif_data: dict):
 )
 def procesar_evento_batch(self, event_data: dict):
     """
-    Celery task: routes a single event from a batch submission.
-    Dispatched by POST /events/batch → EventoBatchView.
+    Celery task: persists a single event from a batch submission.
+    Consumed by the reportes_worker from the bite_events exchange (ASR17).
+
+    Persistence order (per requirement):
+      1. Analisis
+      2. EjecucionAnalisis
+      3. Reporte
+      4. Alerta
+      5. Notificacion (only if processing > 2 s)
     """
+    from django.db import transaction
+    from django.utils import timezone
+    from datetime import date
+
+    start_time = time.monotonic()
     tipo = event_data.get('tipo', '')
+    data = event_data.get('data', {})
+
+    proyecto_id = data.get('proyecto_id')
+    empresa_id = data.get('empresa_id')
+
+    if not proyecto_id or not empresa_id:
+        logger.info("Skipping batch event – missing proyecto_id or empresa_id: %s", event_data)
+        return {'status': 'skipped', 'reason': 'missing_fields'}
+
     try:
-        if tipo == 'proyecto_creado':
-            return procesar_proyecto_creado.apply_async(args=[event_data]).id
-        elif tipo == 'reporte_solicitado':
-            return generar_reporte.apply_async(
-                args=[event_data.get('data', {})],
-                queue='reportes',
-            ).id
-        else:
-            logger.info("Unknown event type in batch: %s", tipo)
-            return {'status': 'skipped', 'tipo': tipo}
+        hoy = date.today()
+        periodo_inicio = date.fromisoformat(
+            data.get('periodo_inicio', hoy.replace(day=1).isoformat())
+        )
+        periodo_fin = date.fromisoformat(
+            data.get('periodo_fin', hoy.isoformat())
+        )
+
+        with transaction.atomic():
+            # 1. Analisis
+            analisis = Analisis.objects.create(
+                nombre=f"Análisis batch – {tipo} – {proyecto_id}",
+                proyecto_id=proyecto_id,
+                empresa_id=empresa_id,
+                tipo=Analisis.Tipo.COSTO,
+                estado=Analisis.Estado.EN_PROCESO,
+            )
+
+            # 2. EjecucionAnalisis
+            ejecucion = EjecucionAnalisis.objects.create(
+                analisis=analisis,
+                estado=EjecucionAnalisis.Estado.EN_PROCESO,
+            )
+
+            # 3. Reporte
+            reporte = ReporteService.generar_reporte_mensual(
+                str(proyecto_id),
+                str(empresa_id),
+                periodo_inicio,
+                periodo_fin,
+                {'tipo_evento': tipo, 'data': data},
+            )
+
+            # 4. Alerta (triggered for every batch event as proof-of-processing)
+            alerta = Alerta.objects.create(
+                analisis=analisis,
+                reporte=reporte,
+                tipo=Alerta.Tipo.ANOMALIA,
+                mensaje=f"Evento batch procesado: {tipo} para proyecto {proyecto_id}",
+                severidad=Alerta.Severidad.BAJA,
+            )
+
+        duracion_ms = int((time.monotonic() - start_time) * 1000)
+
+        # Complete the execution record
+        EjecucionAnalisis.objects.filter(id=ejecucion.id).update(
+            estado=EjecucionAnalisis.Estado.COMPLETADO,
+            completado_en=timezone.now(),
+            duracion_ms=duracion_ms,
+            resultado={'status': 'ok', 'tipo': tipo},
+        )
+        Analisis.objects.filter(id=analisis.id).update(
+            estado=Analisis.Estado.COMPLETADO,
+        )
+
+        # 5. Notificacion – emit if processing exceeded 2 s (architecture.md §2.2)
+        if duracion_ms > 2000:
+            Notificacion.objects.create(
+                ejecucion_analisis=ejecucion,
+                usuario_id=empresa_id,
+                email_destino='admin@bite.co',
+                tipo=Notificacion.Tipo.EMAIL,
+                asunto=f'Análisis completado (lento) – {analisis.nombre}',
+                cuerpo=(
+                    f'El análisis "{analisis.nombre}" completó en {duracion_ms} ms '
+                    f'(umbral: 2000 ms). Reporte ID: {reporte.id}'
+                ),
+            )
+            logger.info("Notificacion emitida por análisis lento: %d ms", duracion_ms)
+
+        logger.info(
+            "Batch event persisted: tipo=%s proyecto=%s analisis=%s reporte=%s duracion=%d ms",
+            tipo, proyecto_id, analisis.id, reporte.id, duracion_ms,
+        )
+        return {
+            'status': 'ok',
+            'tipo': tipo,
+            'analisis_id': str(analisis.id),
+            'reporte_id': str(reporte.id),
+            'alerta_id': str(alerta.id),
+            'duracion_ms': duracion_ms,
+        }
+
     except Exception as exc:
-        logger.exception("Error routing batch event: %s", tipo)
+        logger.exception("Error persisting batch event: tipo=%s proyecto=%s", tipo, proyecto_id)
         raise self.retry(exc=exc)
 
 

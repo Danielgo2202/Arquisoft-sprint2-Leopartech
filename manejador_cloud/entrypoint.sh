@@ -6,11 +6,11 @@ until python -c "
 import os, psycopg2
 try:
     psycopg2.connect(
-        dbname=os.environ.get('DB_NAME','cloud_db'),
-        user=os.environ.get('DB_USER','postgres'),
-        password=os.environ.get('DB_PASSWORD',''),
-        host=os.environ.get('DB_HOST','localhost'),
-        port=os.environ.get('DB_PORT','5432')
+        dbname=os.environ.get('DATABASE_NAME','cloud_db'),
+        user=os.environ.get('DATABASE_USER','admin'),
+        password=os.environ.get('DATABASE_PASSWORD','admin123'),
+        host=os.environ.get('DATABASE_HOST','localhost'),
+        port=os.environ.get('DATABASE_PORT','5432')
     )
     print('PostgreSQL ready')
 except Exception as e:
@@ -23,13 +23,8 @@ done
 echo "Running migrations..."
 python manage.py migrate --noinput
 
-echo "Loading initial data (cloud providers)..."
-python manage.py loaddata resources/fixtures/initial_providers.json 2>/dev/null || true
-
-echo "Loading seeds..."
-if [ -f "/seeds/seed_projects_resources.sql" ]; then
-    python manage.py dbshell < /seeds/seed_projects_resources.sql || true
-fi
+echo "Seeding initial cloud data (ProveedorCloud, CuentaCloud, RecursoCloud, MetricaConsumo)..."
+python manage.py seed_cloud_data
 
 echo "Starting gunicorn..."
 exec gunicorn manejador_cloud.wsgi:application \
