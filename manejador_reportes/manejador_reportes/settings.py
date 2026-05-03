@@ -44,7 +44,7 @@ CACHES = {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'SOCKET_CONNECT_TIMEOUT': 5,
             'SOCKET_TIMEOUT': 5,
-            'IGNORE_EXCEPTIONS': True,
+            # 'IGNORE_EXCEPTIONS': True,
         },
         'TIMEOUT': int(os.environ.get('REDIS_CACHE_TTL', '300')),
     }

@@ -77,16 +77,36 @@ class AnalisisListView(APIView):
         return Response(serializer.data)
 
 
+from django.core.cache import cache
+
 class ReporteListView(APIView):
     """GET /reports?proyecto_id=<uuid>"""
-
     def get(self, request):
         proyecto_id = request.query_params.get('proyecto_id')
+        
+        # Crear una llave de caché única usando el proyecto_id
+        cache_key = f"reportes_list_{proyecto_id if proyecto_id else 'all'}"
+        
+        # 1. Intentar obtener de Redis (caché)
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            print("🟢 CACHE HIT - Sirviendo desde Redis cache")
+            logger.info("ReporteListView: Sirviendo respuesta desde Redis cache para key=%s", cache_key)
+            return Response(cached_data)
+
+        # 2. Si no está en caché, consultar a la Base de Datos
+        print("🔴 CACHE MISS - Consultando Base de Datos")
+        logger.info("ReporteListView: Consultando Base de Datos para key=%s", cache_key)
         qs = Reporte.objects.all().order_by('-periodo_inicio')
         if proyecto_id:
             qs = qs.filter(proyecto_id=proyecto_id)
         serializer = ReporteSerializer(qs[:50], many=True)
-        return Response(serializer.data)
+        
+        # 3. Convertir a lista y guardar el resultado en Redis por 30 segundos
+        data_to_cache = list(serializer.data)
+        cache.set(cache_key, data_to_cache, 30)
+        
+        return Response(data_to_cache)
 
 
 class HealthCheckView(APIView):
