@@ -943,6 +943,22 @@ resource "aws_lb_listener_rule" "events" {
   }
 }
 
+resource "aws_lb_listener_rule" "reports" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 20
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.reportes.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/reports", "/reports/*"]
+    }
+  }
+}
+
 # -----------------------------------------------------------------------------
 # OUTPUTS - use these in JMeter HTTP Request samplers
 # -----------------------------------------------------------------------------
