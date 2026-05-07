@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BITE.co — Dashboard</title>
+  <script src="config.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+    }
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header .logo { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
+    header .logo span { color: #4361ee; }
+    header .user-info { display: flex; align-items: center; gap: 16px; font-size: 0.875rem; }
+    header .user-info span { opacity: 0.8; }
+    button.logout {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.4);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+    button.logout:hover { background: rgba(255,255,255,0.1); }
+    main { padding: 32px; max-width: 1200px; margin: 0 auto; }
+    .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; }
+    .panel {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-header h2 { font-size: 1rem; font-weight: 700; }
+    .panel-header .badge {
+      background: #eff0fb;
+      color: #4361ee;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .panel-body { padding: 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th {
+      background: #f8f9fa;
+      text-align: left;
+      padding: 10px 16px;
+      font-weight: 600;
+      color: #555;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td { padding: 10px 16px; border-top: 1px solid #f0f0f0; }
+    tr:hover td { background: #fafafa; }
+    .loading { padding: 24px; text-align: center; color: #999; font-size: 0.875rem; }
+    .error-msg { padding: 16px; color: #b91c1c; background: #fef2f2; font-size: 0.875rem; }
+    .empty { padding: 24px; text-align: center; color: #aaa; font-size: 0.875rem; }
+    .badge-active {
+      display: inline-block;
+      background: #d1fae5;
+      color: #065f46;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">BITE<span>.co</span></div>
+    <div class="user-info">
+      <span id="headerEmail">Cargando…</span>
+      <button class="logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="panels">
+
+      <!-- Panel 1: Mis Proyectos -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Mis Proyectos</h2>
+          <span class="badge" id="proyectosCount">—</span>
+        </div>
+        <div class="panel-body">
+          <div class="loading" id="proyectosLoading">Cargando proyectos…</div>
+          <div class="error-msg" id="proyectosError" style="display:none"></div>
+          <table id="proyectosTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Presupuesto</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="proyectosTbody"></tbody>
+          </table>
+          <div class="empty" id="proyectosEmpty" style="display:none">Sin proyectos.</div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Recursos Cloud -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Recursos Cloud</h2>
+          <span class="badge" id="recursosCount">—</span>
+        </div>
+        <div class="panel-body">
+          <div class="loading" id="recursosLoading">Cargando recursos…</div>
+          <div class="error-msg" id="recursosError" style="display:none"></div>
+          <table id="recursosTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Proveedor</th>
+              </tr>
+            </thead>
+            <tbody id="recursosTbody"></tbody>
+          </table>
+          <div class="empty" id="recursosEmpty" style="display:none">Sin recursos.</div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Métricas de Costo -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Métricas de Costo</h2>
+          <span class="badge" id="metricasCount">—</span>
+        </div>
+        <div class="panel-body">
+          <div class="loading" id="metricasLoading">Cargando métricas…</div>
+          <div class="error-msg" id="metricasError" style="display:none"></div>
+          <table id="metricasTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Recurso</th>
+                <th>Tipo</th>
+                <th>Costo (USD)</th>
+                <th>Período</th>
+              </tr>
+            </thead>
+            <tbody id="metricasTbody"></tbody>
+          </table>
+          <div class="empty" id="metricasEmpty" style="display:none">Sin métricas.</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('access_token');
+    const email = localStorage.getItem('user_email') || '';
+
+    if (!token) {
+      window.location.href = 'index.html';
+    }
+
+    document.getElementById('headerEmail').textContent = email;
+
+    function logout() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_email');
+      window.location.href = 'index.html';
+    }
+
+    async function apiFetch(url) {
+      const resp = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+      });
+      if (resp.status === 401 || resp.status === 403) {
+        logout();
+        throw new Error('Unauthorized');
+      }
+      return resp;
+    }
+
+    // ── Proyectos ─────────────────────────────────────────────────────────────
+    async function loadProyectos() {
+      try {
+        const resp = await apiFetch(`${CONFIG.USUARIOS_URL}/projects`);
+        const data = await resp.json();
+        const tbody = document.getElementById('proyectosTbody');
+        document.getElementById('proyectosLoading').style.display = 'none';
+        if (!Array.isArray(data) || data.length === 0) {
+          document.getElementById('proyectosEmpty').style.display = 'block';
+          return;
+        }
+        document.getElementById('proyectosCount').textContent = data.length;
+        data.forEach(p => {
+          const tr = document.createElement('tr');
+          const presupuesto = p.presupuesto
+            ? `${parseFloat(p.presupuesto.monto_mensual).toLocaleString('es')} ${p.presupuesto.moneda}`
+            : '—';
+          tr.innerHTML = `
+            <td>${escHtml(p.nombre)}</td>
+            <td>${escHtml(presupuesto)}</td>
+            <td><span class="badge-active">${escHtml(p.estado)}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('proyectosTable').style.display = '';
+      } catch (e) {
+        if (e.message !== 'Unauthorized') {
+          document.getElementById('proyectosLoading').style.display = 'none';
+          showPanelError('proyectosError', 'No se pudieron cargar los proyectos.');
+        }
+      }
+    }
+
+    // ── Recursos Cloud ────────────────────────────────────────────────────────
+    async function loadRecursos() {
+      try {
+        const resp = await apiFetch(`${CONFIG.CLOUD_URL}/resources`);
+        const data = await resp.json();
+        const tbody = document.getElementById('recursosTbody');
+        document.getElementById('recursosLoading').style.display = 'none';
+        const items = Array.isArray(data) ? data : (data.results || []);
+        if (items.length === 0) {
+          document.getElementById('recursosEmpty').style.display = 'block';
+          return;
+        }
+        document.getElementById('recursosCount').textContent = items.length;
+        items.slice(0, 20).forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${escHtml(r.nombre)}</td>
+            <td>${escHtml(r.tipo)}</td>
+            <td>${escHtml(r.proveedor_tipo || '—')}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('recursosTable').style.display = '';
+      } catch (e) {
+        if (e.message !== 'Unauthorized') {
+          document.getElementById('recursosLoading').style.display = 'none';
+          showPanelError('recursosError', 'No se pudieron cargar los recursos cloud.');
+        }
+      }
+    }
+
+    // ── Métricas de Costo ─────────────────────────────────────────────────────
+    async function loadMetricas() {
+      try {
+        const resp = await apiFetch(`${CONFIG.CLOUD_URL}/metrics`);
+        const data = await resp.json();
+        const tbody = document.getElementById('metricasTbody');
+        document.getElementById('metricasLoading').style.display = 'none';
+        const items = Array.isArray(data) ? data : (data.results || []);
+        if (items.length === 0) {
+          document.getElementById('metricasEmpty').style.display = 'block';
+          return;
+        }
+        document.getElementById('metricasCount').textContent = items.length;
+        items.slice(0, 20).forEach(m => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${escHtml(m.recurso_nombre || '—')}</td>
+            <td>${escHtml(m.tipo_metrica)}</td>
+            <td>$${parseFloat(m.costo || 0).toFixed(2)}</td>
+            <td>${escHtml(m.periodo_inicio)} → ${escHtml(m.periodo_fin)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('metricasTable').style.display = '';
+      } catch (e) {
+        if (e.message !== 'Unauthorized') {
+          document.getElementById('metricasLoading').style.display = 'none';
+          showPanelError('metricasError', 'No se pudieron cargar las métricas.');
+        }
+      }
+    }
+
+    function showPanelError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    loadProyectos();
+    loadRecursos();
+    loadMetricas();
+  </script>
+</body>
+</html>

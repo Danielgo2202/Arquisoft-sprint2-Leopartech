@@ -960,6 +960,480 @@ resource "aws_lb_listener_rule" "reports" {
 }
 
 # -----------------------------------------------------------------------------
+# COGNITO USER POOL (ASR3 – Tenant Identity)
+# Custom attribute custom:empresa_id stores the tenant UUID
+# -----------------------------------------------------------------------------
+
+resource "aws_cognito_user_pool" "bite" {
+  name = "${var.project_prefix}-user-pool"
+
+  username_attributes      = ["email"]
+  auto_verified_attributes = ["email"]
+
+  password_policy {
+    minimum_length    = 8
+    require_uppercase = true
+    require_lowercase = true
+    require_numbers   = true
+    require_symbols   = false
+  }
+
+  schema {
+    attribute_data_type = "String"
+    name                = "empresa_id"
+    mutable             = true
+    string_attribute_constraints {
+      min_length = 36
+      max_length = 36
+    }
+  }
+
+  tags = merge(local.common_tags, { Name = "${var.project_prefix}-user-pool" })
+}
+
+resource "aws_cognito_user_pool_client" "bite_spa" {
+  name         = "${var.project_prefix}-spa-client"
+  user_pool_id = aws_cognito_user_pool.bite.id
+
+  # No client secret — SPA-compatible
+  generate_secret = false
+
+  explicit_auth_flows = [
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH",
+  ]
+}
+
+# Test users are created via management command (seed_auth_users) on first startup.
+# In Cognito (production), create them manually or via AWS CLI after apply:
+#
+#   aws cognito-idp admin-create-user \
+#     --user-pool-id <user_pool_id> \
+#     --username empresa_a@bite.co \
+#     --temporary-password BiteCo2024! \
+#     --user-attributes Name=email,Value=empresa_a@bite.co Name=custom:empresa_id,Value=550e8400-e29b-41d4-a716-446655440001
+#
+#   aws cognito-idp admin-create-user \
+#     --user-pool-id <user_pool_id> \
+#     --username empresa_b@bite.co \
+#     --temporary-password BiteCo2024! \
+#     --user-attributes Name=email,Value=empresa_b@bite.co Name=custom:empresa_id,Value=550e8400-e29b-41d4-a716-446655440002
+
+# -----------------------------------------------------------------------------
+# SECURITY GROUP FOR AUTH SERVICES
+# Ports 8004 (autenticacion) and 8005 (seguridad) — ingress from ALB only
+# -----------------------------------------------------------------------------
+
+resource "aws_security_group" "auth" {
+  name        = "${var.project_prefix}-auth"
+  description = "Auth services (manejador_autenticacion + manejador_seguridad)"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description     = "manejador_autenticacion from ALB"
+    from_port       = 8004
+    to_port         = 8004
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  ingress {
+    description = "manejador_autenticacion from VPC (inter-service)"
+    from_port   = 8004
+    to_port     = 8004
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
+  }
+
+  ingress {
+    description = "manejador_seguridad from VPC (inter-service)"
+    from_port   = 8005
+    to_port     = 8005
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
+  }
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.allowed_ssh_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, { Name = "${var.project_prefix}-auth" })
+}
+
+# -----------------------------------------------------------------------------
+# POSTGRES SEGURIDAD — shared DB for autenticacion + seguridad services
+# -----------------------------------------------------------------------------
+
+resource "aws_instance" "postgres_seguridad" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.instance_type_db
+  subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.db.id, aws_security_group.ssh.id]
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
+
+  user_data = <<-EOT
+    #!/bin/bash
+    set -euxo pipefail
+    export DEBIAN_FRONTEND=noninteractive
+    sudo apt-get update -y
+    sudo apt-get install -y postgresql postgresql-contrib
+    PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n 1)
+    DB_CONF=/etc/postgresql/$PG_VERSION/main
+    echo "listen_addresses = '*'" | sudo tee -a $DB_CONF/postgresql.conf
+    grep -q "${data.aws_vpc.default.cidr_block}" $DB_CONF/pg_hba.conf || \
+      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" | sudo tee -a $DB_CONF/pg_hba.conf
+    sudo systemctl enable postgresql
+    sudo systemctl restart postgresql
+    sleep 5
+    sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='admin'" | grep -q 1 || \
+      sudo -u postgres psql -c "CREATE ROLE admin LOGIN PASSWORD 'admin123';"
+    sudo -u postgres createdb -O admin seguridad_db || true
+  EOT
+
+  tags = merge(local.common_tags, {
+    Name    = "${var.project_prefix}-postgres-seguridad"
+    Role    = "database"
+    Service = "seguridad"
+  })
+}
+
+# -----------------------------------------------------------------------------
+# MANEJADOR_AUTENTICACION — port 8004
+# -----------------------------------------------------------------------------
+
+resource "aws_instance" "manejador_autenticacion" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.instance_type_app
+  subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.auth.id]
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
+
+  depends_on = [
+    aws_instance.postgres_seguridad,
+    aws_cognito_user_pool.bite,
+  ]
+
+  user_data = <<-EOT
+    #!/bin/bash
+    set -euxo pipefail
+    export DEBIAN_FRONTEND=noninteractive
+
+    sudo tee /etc/environment <<ENV
+    DATABASE_HOST=${aws_instance.postgres_seguridad.private_ip}
+    DATABASE_PORT=5432
+    DATABASE_NAME=seguridad_db
+    DATABASE_USER=admin
+    DATABASE_PASSWORD=admin123
+    COGNITO_USER_POOL_ID=${aws_cognito_user_pool.bite.id}
+    COGNITO_CLIENT_ID=${aws_cognito_user_pool_client.bite_spa.id}
+    COGNITO_REGION=${var.region}
+    LOCAL_JWT_SECRET=bite-local-jwt-secret
+    ALLOWED_HOSTS=*
+    DEBUG=False
+    SECRET_KEY=bite-terraform-secret-key
+    ENV
+
+    export DATABASE_HOST=${aws_instance.postgres_seguridad.private_ip}
+    export DATABASE_PORT=5432
+    export DATABASE_NAME=seguridad_db
+    export DATABASE_USER=admin
+    export DATABASE_PASSWORD=admin123
+    export COGNITO_USER_POOL_ID=${aws_cognito_user_pool.bite.id}
+    export COGNITO_CLIENT_ID=${aws_cognito_user_pool_client.bite_spa.id}
+    export COGNITO_REGION=${var.region}
+    export LOCAL_JWT_SECRET=bite-local-jwt-secret
+    export ALLOWED_HOSTS=*
+    export DEBUG=False
+    export SECRET_KEY=bite-terraform-secret-key
+
+    ${local.git_bootstrap}
+
+    until nc -z ${aws_instance.postgres_seguridad.private_ip} 5432; do sleep 5; done
+
+    cd ${local.repo_dir}/manejador_autenticacion
+    sudo python3 -m pip install -r requirements.txt
+    python3 manage.py migrate --noinput || true
+    python3 manage.py seed_auth_users || true
+    nohup python3 manage.py runserver 0.0.0.0:8004 > /var/log/manejador_autenticacion.log 2>&1 &
+  EOT
+
+  tags = merge(local.common_tags, {
+    Name    = "${var.project_prefix}-manejador-autenticacion"
+    Role    = "app-server"
+    Service = "autenticacion"
+  })
+}
+
+# -----------------------------------------------------------------------------
+# MANEJADOR_SEGURIDAD — port 8005
+# -----------------------------------------------------------------------------
+
+resource "aws_instance" "manejador_seguridad" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.instance_type_app
+  subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.auth.id]
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
+
+  depends_on = [
+    aws_instance.postgres_seguridad,
+    aws_instance.manejador_autenticacion,
+  ]
+
+  user_data = <<-EOT
+    #!/bin/bash
+    set -euxo pipefail
+    export DEBIAN_FRONTEND=noninteractive
+
+    sudo tee /etc/environment <<ENV
+    DATABASE_HOST=${aws_instance.postgres_seguridad.private_ip}
+    DATABASE_PORT=5432
+    DATABASE_NAME=seguridad_db
+    DATABASE_USER=admin
+    DATABASE_PASSWORD=admin123
+    AUTH_SERVICE_URL=http://${aws_instance.manejador_autenticacion.private_ip}:8004
+    AUTH_SERVICE_TIMEOUT=2
+    LOCAL_JWT_SECRET=bite-local-jwt-secret
+    COGNITO_USER_POOL_ID=${aws_cognito_user_pool.bite.id}
+    COGNITO_CLIENT_ID=${aws_cognito_user_pool_client.bite_spa.id}
+    COGNITO_REGION=${var.region}
+    ALLOWED_HOSTS=*
+    DEBUG=False
+    SECRET_KEY=bite-terraform-secret-key
+    ENV
+
+    export DATABASE_HOST=${aws_instance.postgres_seguridad.private_ip}
+    export DATABASE_PORT=5432
+    export DATABASE_NAME=seguridad_db
+    export DATABASE_USER=admin
+    export DATABASE_PASSWORD=admin123
+    export AUTH_SERVICE_URL=http://${aws_instance.manejador_autenticacion.private_ip}:8004
+    export AUTH_SERVICE_TIMEOUT=2
+    export LOCAL_JWT_SECRET=bite-local-jwt-secret
+    export COGNITO_USER_POOL_ID=${aws_cognito_user_pool.bite.id}
+    export ALLOWED_HOSTS=*
+    export DEBUG=False
+    export SECRET_KEY=bite-terraform-secret-key
+
+    ${local.git_bootstrap}
+
+    until nc -z ${aws_instance.postgres_seguridad.private_ip} 5432; do sleep 5; done
+    until nc -z ${aws_instance.manejador_autenticacion.private_ip} 8004; do sleep 5; done
+
+    cd ${local.repo_dir}/manejador_seguridad
+    sudo python3 -m pip install -r requirements.txt
+    python3 manage.py migrate --noinput || true
+    nohup python3 manage.py runserver 0.0.0.0:8005 > /var/log/manejador_seguridad.log 2>&1 &
+  EOT
+
+  tags = merge(local.common_tags, {
+    Name    = "${var.project_prefix}-manejador-seguridad"
+    Role    = "app-server"
+    Service = "seguridad"
+  })
+}
+
+# -----------------------------------------------------------------------------
+# S3 FRONTEND BUCKET — static HTML/CSS/JS site (deploy: aws s3 sync frontend/ s3://<bucket>/)
+# -----------------------------------------------------------------------------
+
+resource "aws_s3_bucket" "frontend" {
+  bucket = "${var.project_prefix}-frontend-${data.aws_vpc.default.id}"
+  tags   = merge(local.common_tags, { Name = "${var.project_prefix}-frontend" })
+}
+
+resource "aws_s3_bucket_website_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+  index_document { suffix = "index.html" }
+  error_document { key = "index.html" }
+}
+
+resource "aws_s3_bucket_public_access_block" "frontend" {
+  bucket                  = aws_s3_bucket.frontend.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "frontend_public" {
+  bucket = aws_s3_bucket.frontend.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = "*"
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.frontend.arn}/*"
+    }]
+  })
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
+}
+
+# -----------------------------------------------------------------------------
+# ALB UPDATES — add listener rules for /auth/* and /security/*
+# -----------------------------------------------------------------------------
+
+resource "aws_lb_target_group" "autenticacion" {
+  name     = "${var.project_prefix}-tg-auth"
+  port     = 8004
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+
+  health_check {
+    path                = "/health"
+    interval            = 30
+    timeout             = 10
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    matcher             = "200"
+  }
+
+  tags = merge(local.common_tags, { Name = "${var.project_prefix}-tg-auth" })
+}
+
+resource "aws_lb_target_group" "seguridad" {
+  name     = "${var.project_prefix}-tg-security"
+  port     = 8005
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+
+  health_check {
+    path                = "/health"
+    interval            = 30
+    timeout             = 10
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    matcher             = "200"
+  }
+
+  tags = merge(local.common_tags, { Name = "${var.project_prefix}-tg-security" })
+}
+
+resource "aws_lb_target_group_attachment" "autenticacion" {
+  target_group_arn = aws_lb_target_group.autenticacion.arn
+  target_id        = aws_instance.manejador_autenticacion.id
+  port             = 8004
+}
+
+resource "aws_lb_target_group_attachment" "seguridad" {
+  target_group_arn = aws_lb_target_group.seguridad.arn
+  target_id        = aws_instance.manejador_seguridad.id
+  port             = 8005
+}
+
+resource "aws_lb_listener_rule" "auth" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 5
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.autenticacion.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/auth/*", "/auth"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "security" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 6
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.seguridad.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/security/*", "/security"]
+    }
+  }
+}
+
+# Also expose manejador_usuarios SG to allow 8001 traffic from VPC (for middleware inter-service calls)
+# The existing app SG already allows this.
+
+# -----------------------------------------------------------------------------
+# HTTPS CONFIGURATION (commented out — requires domain + ACM certificate)
+# To enable HTTPS:
+# 1. Register a domain in Route 53 or your DNS provider
+# 2. Request a certificate in AWS Certificate Manager (ACM) for your domain
+# 3. Uncomment the resources below and replace "your-domain.com"
+#
+# resource "aws_acm_certificate" "bite" {
+#   domain_name       = "your-domain.com"
+#   validation_method = "DNS"
+#   tags = local.common_tags
+# }
+#
+# resource "aws_acm_certificate_validation" "bite" {
+#   certificate_arn         = aws_acm_certificate.bite.arn
+#   validation_record_fqdns = [for r in aws_acm_certificate.bite.domain_validation_options : r.resource_record_name]
+# }
+#
+# resource "aws_lb_listener" "https" {
+#   load_balancer_arn = aws_lb.main.arn
+#   port              = 443
+#   protocol          = "HTTPS"
+#   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+#   certificate_arn   = aws_acm_certificate.bite.arn
+#
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.usuarios.arn
+#   }
+# }
+#
+# resource "aws_lb_listener" "http_redirect" {
+#   load_balancer_arn = aws_lb.main.arn
+#   port              = 80
+#   protocol          = "HTTP"
+#
+#   default_action {
+#     type = "redirect"
+#     redirect {
+#       port        = "443"
+#       protocol    = "HTTPS"
+#       status_code = "HTTP_301"
+#     }
+#   }
+# }
+#
+# Also update aws_security_group.alb to add ingress on port 443.
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
 # OUTPUTS - use these in JMeter HTTP Request samplers
 # -----------------------------------------------------------------------------
 
@@ -1013,4 +1487,39 @@ output "postgres_reportes_private_ip" {
 output "worker_public_ips" {
   description = "Celery worker pool public IPs - for SSH debugging"
   value       = { for id, instance in aws_instance.worker_pool : id => instance.public_ip }
+}
+
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID — set as COGNITO_USER_POOL_ID env var on app servers"
+  value       = aws_cognito_user_pool.bite.id
+}
+
+output "cognito_client_id" {
+  description = "Cognito App Client ID — set as COGNITO_CLIENT_ID env var on app servers"
+  value       = aws_cognito_user_pool_client.bite_spa.id
+}
+
+output "frontend_s3_url" {
+  description = "S3 static website URL for the BITE.co frontend"
+  value       = "http://${aws_s3_bucket.frontend.bucket}.s3-website-${var.region}.amazonaws.com"
+}
+
+output "manejador_autenticacion_public_ip" {
+  description = "manejador_autenticacion public IP — SSH debugging"
+  value       = aws_instance.manejador_autenticacion.public_ip
+}
+
+output "manejador_seguridad_public_ip" {
+  description = "manejador_seguridad public IP — SSH debugging"
+  value       = aws_instance.manejador_seguridad.public_ip
+}
+
+output "postgres_seguridad_private_ip" {
+  description = "postgres_seguridad private IP — VPC-internal only"
+  value       = aws_instance.postgres_seguridad.private_ip
+}
+
+output "alb_auth_url" {
+  description = "ASR2/ASR3 auth endpoint via ALB"
+  value       = "http://${aws_lb.main.dns_name}/auth/login"
 }

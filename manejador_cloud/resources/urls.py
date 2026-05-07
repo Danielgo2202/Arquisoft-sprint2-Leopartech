@@ -7,6 +7,6 @@ urlpatterns = [
     path('cloud-accounts/<uuid:cuenta_id>/validate', views.CuentaCloudValidateView.as_view(), name='cuenta-cloud-validate'),
     path('resources', views.RecursoCloudListCreateView.as_view(), name='recurso-cloud-list-create'),
     path('resources/<uuid:recurso_id>', views.RecursoCloudDetailView.as_view(), name='recurso-cloud-detail'),
-    path('metrics', views.MetricaConsumoCreateView.as_view(), name='metrica-consumo-create'),
+    path('metrics', views.MetricaConsumoView.as_view(), name='metrica-consumo'),
     path('health', views.HealthCheckView.as_view(), name='health-check'),
 ]

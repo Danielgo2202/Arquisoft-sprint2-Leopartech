@@ -4,10 +4,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import connection, OperationalError
 
+from .models import MetricaConsumo
 from .serializers import (
     CuentaCloudSerializer, CuentaCloudCreateSerializer,
     RecursoCloudSerializer, RecursoCloudCreateSerializer,
-    MetricaConsumoCreateSerializer,
+    MetricaConsumoCreateSerializer, MetricaConsumoSerializer,
 )
 from .services import CuentaCloudService, RecursoCloudService
 
@@ -77,14 +78,15 @@ class RecursoCloudListCreateView(APIView):
     """GET /resources  |  POST /resources"""
 
     def get(self, request):
-        cuenta_id = request.query_params.get('cuenta_id')
-        if not cuenta_id:
-            return Response(
-                {'error': 'Se requiere el parámetro cuenta_id.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        data = RecursoCloudService.list_by_cuenta(cuenta_id)
-        return Response(data)
+        cuenta_id = request.query_params.get('cuenta_id', '').strip()
+        if cuenta_id:
+            data = RecursoCloudService.list_by_cuenta(cuenta_id)
+            return Response(data)
+        # No cuenta_id: return all resources (for dashboard overview)
+        from .models import RecursoCloud
+        qs = RecursoCloud.objects.select_related('cuenta__proveedor').filter(activo=True)[:100]
+        serializer = RecursoCloudSerializer(qs, many=True)
+        return Response(serializer.data)
 
     def post(self, request):
         serializer = RecursoCloudCreateSerializer(data=request.data)
@@ -113,8 +115,20 @@ class RecursoCloudDetailView(APIView):
         return Response(result)
 
 
-class MetricaConsumoCreateView(APIView):
-    """POST /metrics"""
+class MetricaConsumoView(APIView):
+    """
+    GET /metrics — list consumption metrics (auth required via TenantAuthMiddleware).
+    POST /metrics — record a new metric.
+    """
+
+    def get(self, request):
+        qs = (
+            MetricaConsumo.objects
+            .select_related('recurso')
+            .order_by('-registrada_en')[:100]
+        )
+        serializer = MetricaConsumoSerializer(qs, many=True)
+        return Response(serializer.data)
 
     def post(self, request):
         serializer = MetricaConsumoCreateSerializer(data=request.data)

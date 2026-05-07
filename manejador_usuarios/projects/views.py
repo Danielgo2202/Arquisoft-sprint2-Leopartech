@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import connection, OperationalError
 
+from .models import Proyecto
 from .serializers import ProyectoCreateSerializer, ProyectoResponseSerializer
 from .services import ProyectoService
 from .resource_client import CloudServiceUnavailable
@@ -13,11 +14,25 @@ logger = logging.getLogger(__name__)
 
 class ProyectoCreateView(APIView):
     """
-    POST /projects
-    Creates a Proyecto after validating Empresa and CuentaCloud(s).
-    Returns HTTP 201 quickly; evento proyecto_creado is published asynchronously.
+    GET  /projects — list projects for the authenticated tenant.
+    POST /projects — create a new project (requires valid JWT).
     Target latency: ≤ 100 ms (architecture.md §6 Performance SLA).
     """
+
+    def get(self, request):
+        empresa_id = getattr(request, 'tenant_id', None)
+        if not empresa_id:
+            return Response({'error': 'Tenant no identificado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        qs = (
+            Proyecto.objects
+            .filter(empresa__id=empresa_id)
+            .select_related('empresa', 'presupuesto')
+            .prefetch_related('cuentas_cloud')
+            .order_by('-creado_en')[:50]
+        )
+        serializer = ProyectoResponseSerializer(qs, many=True)
+        return Response(serializer.data)
 
     def post(self, request):
         serializer = ProyectoCreateSerializer(data=request.data)

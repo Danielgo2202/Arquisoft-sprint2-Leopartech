@@ -17,6 +17,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'projects.middleware.TenantAuthMiddleware',
 ]
 
 ROOT_URLCONF = 'manejador_usuarios.urls'
@@ -62,6 +63,12 @@ RABBITMQ_ROUTING_KEY_PROJECT = os.environ.get('RABBITMQ_ROUTING_KEY_PROJECT', 'p
 
 # Inter-service: calls manejador_cloud for CuentaCloud validation
 RESOURCE_SERVICE_URL = os.environ.get('RESOURCE_SERVICE_URL', 'http://manejador_cloud:8002')
+
+# Auth + Security services (ASR2/ASR3)
+AUTH_SERVICE_URL = os.environ.get('AUTH_SERVICE_URL', 'http://manejador-autenticacion:8004')
+AUTH_SERVICE_TIMEOUT = int(os.environ.get('AUTH_SERVICE_TIMEOUT', '2'))
+SEGURIDAD_URL = os.environ.get('SEGURIDAD_URL', 'http://manejador-seguridad:8005')
+LOCAL_JWT_SECRET = os.environ.get('LOCAL_JWT_SECRET', 'local-dev-jwt-secret-change-in-production')
 RESOURCE_SERVICE_TIMEOUT = int(os.environ.get('RESOURCE_SERVICE_TIMEOUT', '2'))
 
 # Cache TTLs (seconds)
