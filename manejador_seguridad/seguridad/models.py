@@ -11,6 +11,7 @@ class EventoSeguridad(models.Model):
         ACCESO_NO_AUTORIZADO = 'acceso_no_autorizado', 'Acceso no autorizado'
         ACCESO_CRUZADO_TENANT = 'acceso_cruzado_tenant', 'Acceso cruzado entre tenants'
         TOKEN_INVALIDO = 'token_invalido', 'Token inválido'
+        INTEGRIDAD_TLS = 'integridad_tls', 'Verificación TLS/Integridad'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tipo = models.CharField(max_length=30, choices=Tipo.choices, db_index=True)
@@ -50,3 +51,37 @@ class RegistroAuditoria(models.Model):
 
     def __str__(self):
         return f"Auditoria {self.evento_id}: {self.descripcion[:60]}"
+
+
+class VerificacionIntegridad(models.Model):
+    """
+    ASR2 – Seguridad (Integridad).
+    Registers every TLS/integrity verification attempt:
+      - protocol used (HTTP vs HTTPS)
+      - whether the request was accepted or rejected
+      - HMAC integrity check results
+    """
+    class Resultado(models.TextChoices):
+        ACEPTADO = 'aceptado', 'Solicitud aceptada (HTTPS)'
+        RECHAZADO = 'rechazado', 'Solicitud rechazada (HTTP sin cifrado)'
+        REDIRIGIDO = 'redirigido', 'Redirigido a HTTPS'
+        INTEGRIDAD_OK = 'integridad_ok', 'Hash de integridad válido'
+        INTEGRIDAD_FALLO = 'integridad_fallo', 'Hash de integridad inválido'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    endpoint = models.CharField(max_length=500)
+    metodo = models.CharField(max_length=10)
+    protocolo = models.CharField(max_length=10)          # 'HTTP' | 'HTTPS'
+    ip_origen = models.GenericIPAddressField(null=True, blank=True)
+    resultado = models.CharField(max_length=20, choices=Resultado.choices)
+    tls_version = models.CharField(max_length=20, blank=True, default='')  # e.g. 'TLSv1.3'
+    cipher_suite = models.CharField(max_length=100, blank=True, default='')
+    evidencia = models.JSONField(default=dict)
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'verificaciones_integridad'
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f"{self.resultado} | {self.protocolo} | {self.endpoint} ({self.creado_en})"

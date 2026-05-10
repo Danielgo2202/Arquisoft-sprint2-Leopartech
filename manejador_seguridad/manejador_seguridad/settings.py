@@ -46,6 +46,10 @@ COGNITO_CLIENT_ID = os.environ.get('COGNITO_CLIENT_ID', '')
 COGNITO_REGION = os.environ.get('COGNITO_REGION', 'us-east-1')
 USE_COGNITO = bool(COGNITO_USER_POOL_ID)
 
+# ASR2 – Shared HMAC secret for payload integrity verification
+INTEGRITY_HMAC_SECRET = os.environ.get('INTEGRITY_HMAC_SECRET', 'bite-integrity-hmac-secret-change-in-production')
+
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

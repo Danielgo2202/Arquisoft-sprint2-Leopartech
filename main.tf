@@ -85,6 +85,10 @@ provider "aws" {
   region = var.region
 }
 
+# ASR2 – TLS provider for generating self-signed certificate
+provider "tls" {}
+
+
 data "aws_vpc" "default" {
   default = true
 }
@@ -173,16 +177,26 @@ resource "aws_security_group" "ssh" {
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-ssh" })
 }
 
-# ALB security group - accepts HTTP from anywhere, forwards to app servers
+# ALB security group - accepts HTTP and HTTPS from anywhere
+# ASR2: port 443 required for TLS experiment evidence
 resource "aws_security_group" "alb" {
   name        = "${var.project_prefix}-alb"
-  description = "Application Load Balancer - public HTTP ingress"
+  description = "Application Load Balancer - public HTTP and HTTPS ingress"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description = "HTTP from Internet (JMeter targets this)"
+    description = "HTTP from Internet"
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # ASR2 – Integridad: HTTPS/TLS ingress
+  ingress {
+    description = "HTTPS/TLS from Internet (ASR2 integrity experiment)"
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -912,18 +926,70 @@ resource "aws_lb_target_group_attachment" "reportes" {
   port             = 8003
 }
 
-# ALB Listener - routes by path prefix
-# /projects* → manejador_usuarios (ASR16)
-# /events*   → manejador_reportes (ASR17)
+# ALB Listener - HTTP on port 80
+# ASR2: redirects HTTP -> HTTPS to enforce 100% encrypted traffic
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
 
-  # Default action routes to usuarios (ASR16 is the primary latency test)
+  # ASR2 – Redirect HTTP to HTTPS (proves HTTP is rejected / redirected)
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+# ASR2 – Self-signed TLS certificate for AWS Academy (no real domain needed)
+# Generates a private key + self-signed cert directly on the ALB via ACM import
+resource "aws_acm_certificate" "asr2_selfsigned" {
+  private_key       = tls_private_key.asr2.private_key_pem
+  certificate_body  = tls_self_signed_cert.asr2.cert_pem
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_prefix}-asr2-selfsigned"
+    ASR  = "ASR2-Integridad"
+  })
+}
+
+resource "tls_private_key" "asr2" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "tls_self_signed_cert" "asr2" {
+  private_key_pem = tls_private_key.asr2.private_key_pem
+
+  subject {
+    common_name  = "bite2-alb.bite.co"
+    organization = "BITE.co ASR2 Experiment"
+  }
+
+  validity_period_hours = 720  # 30 days
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth",
+  ]
+}
+
+# ASR2 – HTTPS listener on port 443 (TLS termination at the ALB)
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate.asr2_selfsigned.arn
+
+  # Default action routes to seguridad (ASR2 tls-status endpoint)
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.usuarios.arn
+    target_group_arn = aws_lb_target_group.seguridad.arn
   }
 }
 
@@ -1354,8 +1420,12 @@ resource "aws_lb_listener_rule" "auth" {
   priority     = 5
 
   action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.autenticacion.arn
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 
   condition {
@@ -1370,6 +1440,43 @@ resource "aws_lb_listener_rule" "security" {
   priority     = 6
 
   action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/security/*", "/security"]
+    }
+  }
+}
+
+# ASR2 – HTTPS listener rules (mirror of HTTP rules, now over TLS)
+resource "aws_lb_listener_rule" "https_auth" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 5
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.autenticacion.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/auth/*", "/auth"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "https_security" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 6
+
+  action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.seguridad.arn
   }
@@ -1381,8 +1488,25 @@ resource "aws_lb_listener_rule" "security" {
   }
 }
 
+resource "aws_lb_listener_rule" "https_usuarios" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.usuarios.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/projects/*", "/projects"]
+    }
+  }
+}
+
 # Also expose manejador_usuarios SG to allow 8001 traffic from VPC (for middleware inter-service calls)
 # The existing app SG already allows this.
+
 
 # -----------------------------------------------------------------------------
 # HTTPS CONFIGURATION (commented out — requires domain + ACM certificate)
@@ -1522,4 +1646,25 @@ output "postgres_seguridad_private_ip" {
 output "alb_auth_url" {
   description = "ASR2/ASR3 auth endpoint via ALB"
   value       = "http://${aws_lb.main.dns_name}/auth/login"
+}
+
+# ASR2 – Integridad: HTTPS endpoints for the experiment
+output "asr2_tls_status_url_http" {
+  description = "ASR2 experiment: HTTP request (should be rejected/redirected)"
+  value       = "http://${aws_lb.main.dns_name}/security/tls-status"
+}
+
+output "asr2_tls_status_url_https" {
+  description = "ASR2 experiment: HTTPS request (should be accepted with TLS info)"
+  value       = "https://${aws_lb.main.dns_name}/security/tls-status"
+}
+
+output "asr2_integrity_check_url" {
+  description = "ASR2 experiment: HMAC integrity check endpoint"
+  value       = "https://${aws_lb.main.dns_name}/security/integrity-check"
+}
+
+output "asr2_integrity_log_url" {
+  description = "ASR2 experiment: audit log for all TLS/integrity checks"
+  value       = "https://${aws_lb.main.dns_name}/security/integrity-log"
 }

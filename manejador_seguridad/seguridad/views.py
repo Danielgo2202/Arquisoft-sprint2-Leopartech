@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import logging
 import requests as http_requests
 from rest_framework import status
@@ -6,8 +8,8 @@ from rest_framework.response import Response
 from django.db import connection, OperationalError
 from django.conf import settings
 
-from .models import EventoSeguridad, RegistroAuditoria
-from .serializers import EventoSeguridadSerializer
+from .models import EventoSeguridad, RegistroAuditoria, VerificacionIntegridad
+from .serializers import EventoSeguridadSerializer, VerificacionIntegridadSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -229,3 +231,214 @@ class HealthCheckView(APIView):
             },
             status=status.HTTP_200_OK if all_ok else status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+
+# =============================================================================
+# ASR2 – Seguridad (Integridad): vistas para el experimento de cifrado TLS
+# =============================================================================
+
+def _get_protocol(request):
+    """
+    Detect whether the incoming request arrived via HTTP or HTTPS.
+    AWS ALB sets the X-Forwarded-Proto header when it terminates TLS.
+    """
+    forwarded_proto = request.META.get('HTTP_X_FORWARDED_PROTO', '')
+    if forwarded_proto:
+        return forwarded_proto.upper()
+    return 'HTTPS' if request.is_secure() else 'HTTP'
+
+
+def _log_integrity_check(endpoint, metodo, protocolo, ip, resultado, evidencia=None):
+    """Persist a VerificacionIntegridad record for ASR2 audit evidence."""
+    try:
+        VerificacionIntegridad.objects.create(
+            endpoint=endpoint,
+            metodo=metodo,
+            protocolo=protocolo,
+            ip_origen=ip,
+            resultado=resultado,
+            tls_version=evidencia.get('tls_version', '') if evidencia else '',
+            cipher_suite=evidencia.get('cipher_suite', '') if evidencia else '',
+            evidencia=evidencia or {},
+        )
+    except Exception:
+        logger.exception("Failed to log integrity check")
+
+
+class TLSStatusView(APIView):
+    """
+    GET /security/tls-status
+
+    ASR2 experiment: reports the protocol layer of the incoming request.
+
+    - HTTPS (TLS terminated at ALB): returns 200 with protocol details.
+    - HTTP (unencrypted): returns 400 to signal that the request is insecure.
+
+    This endpoint is intentionally unauthenticated so BurpSuite can call
+    it without a token and observe the HTTP-vs-HTTPS discrimination in action.
+    """
+
+    def get(self, request):
+        protocolo = _get_protocol(request)
+        ip = _get_client_ip(request)
+        endpoint = request.path
+
+        # TLS metadata forwarded by AWS ALB
+        tls_version = request.META.get('HTTP_X_AMZN_TLS_VERSION', 'N/A')
+        cipher_suite = request.META.get('HTTP_X_AMZN_TLS_CIPHER_SUITE', 'N/A')
+
+        evidencia = {
+            'protocolo': protocolo,
+            'tls_version': tls_version,
+            'cipher_suite': cipher_suite,
+            'x_forwarded_proto': request.META.get('HTTP_X_FORWARDED_PROTO', 'N/A'),
+            'host': request.META.get('HTTP_HOST', 'N/A'),
+            'user_agent': request.META.get('HTTP_USER_AGENT', 'N/A'),
+        }
+
+        if protocolo == 'HTTPS':
+            _log_integrity_check(
+                endpoint=endpoint, metodo='GET', protocolo=protocolo,
+                ip=ip, resultado=VerificacionIntegridad.Resultado.ACEPTADO,
+                evidencia=evidencia,
+            )
+            return Response(
+                {
+                    'asr': 'ASR2 - Seguridad (Integridad)',
+                    'resultado': 'ACEPTADO',
+                    'protocolo': protocolo,
+                    'tls_version': tls_version,
+                    'cipher_suite': cipher_suite,
+                    'mensaje': 'Comunicacion cifrada. El 100% de las solicitudes externas se realizan mediante HTTPS (TLS).',
+                    'evidencia': evidencia,
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            _log_integrity_check(
+                endpoint=endpoint, metodo='GET', protocolo=protocolo,
+                ip=ip, resultado=VerificacionIntegridad.Resultado.RECHAZADO,
+                evidencia=evidencia,
+            )
+            return Response(
+                {
+                    'asr': 'ASR2 - Seguridad (Integridad)',
+                    'resultado': 'RECHAZADO',
+                    'protocolo': protocolo,
+                    'mensaje': 'Solicitud HTTP rechazada. El sistema requiere HTTPS para garantizar la integridad de los datos en transito.',
+                    'accion_requerida': 'Use HTTPS en lugar de HTTP.',
+                    'evidencia': evidencia,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class IntegrityCheckView(APIView):
+    """
+    POST /security/integrity-check
+
+    ASR2 experiment: verifies HMAC-SHA256 integrity of a payload.
+
+    Body:
+        payload  (str)  – the data whose integrity should be verified
+        hmac_sha256 (str) – hex digest provided by the sender
+
+    The shared secret is INTEGRITY_HMAC_SECRET from Django settings.
+    Returns 200 if the digest matches, 422 if tampered, 400 if missing fields.
+
+    This simulates the "cifrado y validacion de integridad" requirement
+    for data transmitted between components.
+    """
+
+    def post(self, request):
+        protocolo = _get_protocol(request)
+        ip = _get_client_ip(request)
+        endpoint = request.path
+
+        payload = request.data.get('payload')
+        provided_hmac = request.data.get('hmac_sha256')
+
+        if not payload or not provided_hmac:
+            return Response(
+                {
+                    'error': 'Se requieren los campos payload y hmac_sha256.',
+                    'ejemplo': {
+                        'payload': 'datos-a-verificar',
+                        'hmac_sha256': 'hex-digest-hmac-sha256',
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Compute expected HMAC
+        secret = settings.INTEGRITY_HMAC_SECRET.encode()
+        expected = hmac.new(secret, payload.encode(), hashlib.sha256).hexdigest()
+        is_valid = hmac.compare_digest(expected, provided_hmac.lower())
+
+        evidencia = {
+            'protocolo': protocolo,
+            'payload_length': len(payload),
+            'hmac_provided': provided_hmac,
+            'hmac_expected': expected,
+            'coincide': is_valid,
+        }
+
+        if is_valid:
+            _log_integrity_check(
+                endpoint=endpoint, metodo='POST', protocolo=protocolo,
+                ip=ip, resultado=VerificacionIntegridad.Resultado.INTEGRIDAD_OK,
+                evidencia={k: v for k, v in evidencia.items() if k != 'hmac_expected'},
+            )
+            return Response(
+                {
+                    'asr': 'ASR2 - Seguridad (Integridad)',
+                    'resultado': 'INTEGRIDAD_OK',
+                    'mensaje': 'El hash HMAC-SHA256 coincide. Los datos no han sido alterados en transito.',
+                    'hmac_verificado': provided_hmac,
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            _log_integrity_check(
+                endpoint=endpoint, metodo='POST', protocolo=protocolo,
+                ip=ip, resultado=VerificacionIntegridad.Resultado.INTEGRIDAD_FALLO,
+                evidencia=evidencia,
+            )
+            return Response(
+                {
+                    'asr': 'ASR2 - Seguridad (Integridad)',
+                    'resultado': 'INTEGRIDAD_FALLO',
+                    'mensaje': 'El hash HMAC-SHA256 NO coincide. Los datos pueden haber sido alterados en transito.',
+                    'alerta': 'Posible manipulacion de datos detectada.',
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+
+class IntegrityLogView(APIView):
+    """
+    GET /security/integrity-log
+
+    ASR2 experiment: returns the last 100 TLS/integrity check records.
+    Used to generate evidence that the system logs 100% of verifications.
+    Requires a valid Bearer token.
+    """
+
+    def get(self, request):
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not auth_header.startswith('Bearer '):
+            return Response({'error': 'Token requerido.'}, status=status.HTTP_403_FORBIDDEN)
+
+        token = auth_header[7:]
+        user_info = _validate_token_via_auth_service(token)
+        if user_info is None:
+            return Response({'error': 'Token invalido.'}, status=status.HTTP_403_FORBIDDEN)
+
+        qs = VerificacionIntegridad.objects.all().order_by('-creado_en')[:100]
+        serializer = VerificacionIntegridadSerializer(qs, many=True)
+        return Response({
+            'asr': 'ASR2 - Seguridad (Integridad)',
+            'total_registros': qs.count(),
+            'registros': serializer.data,
+        })
+
