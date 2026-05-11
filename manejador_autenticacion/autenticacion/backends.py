@@ -41,6 +41,7 @@ def _issue_local_tokens(user):
         'sub': str(user.id),
         'email': user.email,
         'empresa_id': str(user.empresa_id),
+        'rol': user.rol,
         'type': 'access',
         'iat': int(now.timestamp()),
         'exp': int((now + timedelta(seconds=settings.LOCAL_JWT_ACCESS_EXPIRY)).timestamp()),
@@ -49,6 +50,7 @@ def _issue_local_tokens(user):
         'sub': str(user.id),
         'email': user.email,
         'empresa_id': str(user.empresa_id),
+        'rol': user.rol,
         'type': 'refresh',
         'iat': int(now.timestamp()),
         'exp': int((now + timedelta(seconds=settings.LOCAL_JWT_REFRESH_EXPIRY)).timestamp()),
@@ -60,6 +62,7 @@ def _issue_local_tokens(user):
         'refresh_token': refresh_token,
         'token_type': 'Bearer',
         'expires_in': settings.LOCAL_JWT_ACCESS_EXPIRY,
+        'rol': user.rol,
     }
 
 
@@ -109,6 +112,7 @@ def local_validate(token):
         'user_id': payload.get('sub'),
         'email': payload.get('email', ''),
         'empresa_id': payload.get('empresa_id'),
+        'rol': payload.get('rol', 'ANALYST'),
         'valid': True,
     }
 
@@ -127,12 +131,19 @@ def cognito_login(email, password):
             ClientId=settings.COGNITO_CLIENT_ID,
         )
         result = response['AuthenticationResult']
+        # Decode the ID token to extract the rol claim without verifying (just for the login response)
+        try:
+            id_payload = jwt.decode(result['IdToken'], options={"verify_signature": False})
+            rol = id_payload.get('custom:rol', 'ANALYST')
+        except Exception:
+            rol = 'ANALYST'
         return {
             'access_token': result['AccessToken'],
             'refresh_token': result.get('RefreshToken', ''),
             'id_token': result['IdToken'],
             'token_type': 'Bearer',
             'expires_in': result.get('ExpiresIn', 3600),
+            'rol': rol,
         }
     except ClientError as e:
         code = e.response['Error']['Code']
@@ -197,6 +208,7 @@ def cognito_validate(token):
             'user_id': payload.get('sub'),
             'email': payload.get('email', ''),
             'empresa_id': payload.get('custom:empresa_id'),
+            'rol': payload.get('custom:rol', 'ANALYST'),
             'valid': True,
         }
     except Exception as e:

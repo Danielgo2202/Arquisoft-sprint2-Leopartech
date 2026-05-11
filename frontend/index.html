@@ -108,7 +108,7 @@
       <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" />
       <button type="submit" id="submitBtn">Iniciar sesión</button>
     </form>
-    <p class="hint">Demo: empresa_a@bite.co / BiteCo2024!</p>
+    <p class="hint">Demo: empresa_a@bite.co / BiteCo2024! (ADMIN) · analyst@bite.co (ANALYST)</p>
   </div>
 
   <script>
@@ -147,6 +147,7 @@
         localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token || '');
         localStorage.setItem('user_email', email);
+        localStorage.setItem('user_rol', data.rol || 'ANALYST');
         window.location.href = 'dashboard.html';
       } catch (err) {
         showError('No se pudo conectar con el servidor. Intente nuevamente.');

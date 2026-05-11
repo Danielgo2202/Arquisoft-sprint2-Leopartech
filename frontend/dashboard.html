@@ -24,6 +24,18 @@
     header .logo span { color: #4361ee; }
     header .user-info { display: flex; align-items: center; gap: 16px; font-size: 0.875rem; }
     header .user-info span { opacity: 0.8; }
+    header nav { display: flex; align-items: center; gap: 16px; font-size: 0.875rem; }
+    header nav a {
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      background: #4361ee;
+      transition: background 0.2s;
+    }
+    header nav a:hover { background: #3451d1; }
     button.logout {
       background: transparent;
       border: 1px solid rgba(255,255,255,0.4);
@@ -89,6 +101,9 @@
 <body>
   <header>
     <div class="logo">BITE<span>.co</span></div>
+    <nav id="headerNav" style="display:none">
+      <a href="metrics.html">Métricas Avanzadas</a>
+    </nav>
     <div class="user-info">
       <span id="headerEmail">Cargando…</span>
       <button class="logout" onclick="logout()">Cerrar sesión</button>
@@ -174,6 +189,7 @@
   <script>
     const token = localStorage.getItem('access_token');
     const email = localStorage.getItem('user_email') || '';
+    const rol   = localStorage.getItem('user_rol') || 'ANALYST';
 
     if (!token) {
       window.location.href = 'index.html';
@@ -181,10 +197,16 @@
 
     document.getElementById('headerEmail').textContent = email;
 
+    // Show Métricas link only for ADMIN and MANAGER
+    if (rol === 'ADMIN' || rol === 'MANAGER') {
+      document.getElementById('headerNav').style.display = 'flex';
+    }
+
     function logout() {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user_email');
+      localStorage.removeItem('user_rol');
       window.location.href = 'index.html';
     }
 

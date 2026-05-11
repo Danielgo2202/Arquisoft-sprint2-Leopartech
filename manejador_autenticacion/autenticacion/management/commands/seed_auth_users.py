@@ -14,11 +14,19 @@ SEED_USERS = [
         'email': 'empresa_a@bite.co',
         'password': 'BiteCo2024!',
         'empresa_id': '550e8400-e29b-41d4-a716-446655440001',
+        'rol': 'ADMIN',
     },
     {
         'email': 'empresa_b@bite.co',
         'password': 'BiteCo2024!',
         'empresa_id': '550e8400-e29b-41d4-a716-446655440002',
+        'rol': 'MANAGER',
+    },
+    {
+        'email': 'analyst@bite.co',
+        'password': 'BiteCo2024!',
+        'empresa_id': '550e8400-e29b-41d4-a716-446655440001',
+        'rol': 'ANALYST',
     },
 ]
 
@@ -30,12 +38,16 @@ class Command(BaseCommand):
         for data in SEED_USERS:
             user, created = UsuarioLocal.objects.get_or_create(
                 email=data['email'],
-                defaults={'empresa_id': data['empresa_id']},
+                defaults={
+                    'empresa_id': data['empresa_id'],
+                    'rol': data['rol'],
+                },
             )
             if created or not user.password_hash:
                 user.empresa_id = data['empresa_id']
+                user.rol = data['rol']
                 user.set_password(data['password'])
                 user.save()
-                self.stdout.write(self.style.SUCCESS(f"Created user: {data['email']}"))
+                self.stdout.write(self.style.SUCCESS(f"Created user: {data['email']} ({data['rol']})"))
             else:
                 self.stdout.write(f"User already exists: {data['email']}")

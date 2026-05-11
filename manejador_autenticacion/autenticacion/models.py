@@ -9,10 +9,16 @@ class UsuarioLocal(models.Model):
     Used in docker compose (local dev) without AWS credentials.
     In production, users are managed in Amazon Cognito.
     """
+    class Rol(models.TextChoices):
+        ADMIN = 'ADMIN', 'Admin'
+        MANAGER = 'MANAGER', 'Manager'
+        ANALYST = 'ANALYST', 'Analyst'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     password_hash = models.CharField(max_length=255)
     empresa_id = models.UUIDField(db_index=True)
+    rol = models.CharField(max_length=50, choices=Rol.choices, default=Rol.ANALYST)
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 

@@ -436,124 +436,36 @@ resource "aws_instance" "rabbitmq" {
 }
 
 # -----------------------------------------------------------------------------
-# DATABASES - one PostgreSQL EC2 per microservice
-# architecture.md §3.4 - database isolation per service
+# DATABASES - Single RDS PostgreSQL instance shared across all microservices
+# Each service gets its own database and dedicated user for isolation.
+# RDS does not count against EC2 instance quota.
 # -----------------------------------------------------------------------------
 
-resource "aws_instance" "postgres_usuarios" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.instance_type_db
-  subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
-  associate_public_ip_address = true
-  vpc_security_group_ids      = [aws_security_group.db.id, aws_security_group.ssh.id]
-
-
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-  }
-
-  user_data = <<-EOT
-    #!/bin/bash
-    set -euxo pipefail
-    export DEBIAN_FRONTEND=noninteractive
-    sudo apt-get update -y
-    sudo apt-get install -y postgresql postgresql-contrib
-    PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n 1)
-    DB_CONF=/etc/postgresql/$PG_VERSION/main
-    echo "listen_addresses = '*'" | sudo tee -a $DB_CONF/postgresql.conf
-    grep -q "${data.aws_vpc.default.cidr_block}" $DB_CONF/pg_hba.conf || \
-      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" | sudo tee -a $DB_CONF/pg_hba.conf
-    sudo systemctl enable postgresql
-    sudo systemctl restart postgresql
-    sleep 5
-    sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='admin'" | grep -q 1 || \
-      sudo -u postgres psql -c "CREATE ROLE admin LOGIN PASSWORD 'admin123';"
-    sudo -u postgres createdb -O admin usuarios_db || true
-  EOT
-
-  tags = merge(local.common_tags, {
-    Name    = "${var.project_prefix}-postgres-usuarios"
-    Role    = "database"
-    Service = "usuarios"
-  })
+resource "aws_db_subnet_group" "main" {
+  name       = "${var.project_prefix}-rds-subnets"
+  subnet_ids = tolist(data.aws_subnets.default.ids)
+  tags       = merge(local.common_tags, { Name = "${var.project_prefix}-rds-subnets" })
 }
 
-resource "aws_instance" "postgres_cloud" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.instance_type_db
-  subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
-  associate_public_ip_address = true
-  vpc_security_group_ids      = [aws_security_group.db.id, aws_security_group.ssh.id]
-
-
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-  }
-
-  user_data = <<-EOT
-    #!/bin/bash
-    set -euxo pipefail
-    export DEBIAN_FRONTEND=noninteractive
-    sudo apt-get update -y
-    sudo apt-get install -y postgresql postgresql-contrib
-    PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n 1)
-    DB_CONF=/etc/postgresql/$PG_VERSION/main
-    echo "listen_addresses = '*'" | sudo tee -a $DB_CONF/postgresql.conf
-    grep -q "${data.aws_vpc.default.cidr_block}" $DB_CONF/pg_hba.conf || \
-      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" | sudo tee -a $DB_CONF/pg_hba.conf
-    sudo systemctl enable postgresql
-    sudo systemctl restart postgresql
-    sleep 5
-    sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='admin'" | grep -q 1 || \
-      sudo -u postgres psql -c "CREATE ROLE admin LOGIN PASSWORD 'admin123';"
-    sudo -u postgres createdb -O admin cloud_db || true
-  EOT
+resource "aws_db_instance" "main" {
+  identifier             = "${var.project_prefix}-postgres"
+  engine                 = "postgres"
+  engine_version         = "15"
+  instance_class         = "db.t3.micro"
+  allocated_storage      = 20
+  storage_type           = "gp2"
+  db_name                = "bite_master"
+  username               = "bite_master"
+  password               = "Bite_Master_2024!"
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  vpc_security_group_ids = [aws_security_group.db.id]
+  skip_final_snapshot    = true
+  publicly_accessible    = false
+  deletion_protection    = false
 
   tags = merge(local.common_tags, {
-    Name    = "${var.project_prefix}-postgres-cloud"
-    Role    = "database"
-    Service = "cloud"
-  })
-}
-
-resource "aws_instance" "postgres_reportes" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.instance_type_db
-  subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
-  associate_public_ip_address = true
-  vpc_security_group_ids      = [aws_security_group.db.id, aws_security_group.ssh.id]
-
-
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-  }
-
-  user_data = <<-EOT
-    #!/bin/bash
-    set -euxo pipefail
-    export DEBIAN_FRONTEND=noninteractive
-    sudo apt-get update -y
-    sudo apt-get install -y postgresql postgresql-contrib
-    PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n 1)
-    DB_CONF=/etc/postgresql/$PG_VERSION/main
-    echo "listen_addresses = '*'" | sudo tee -a $DB_CONF/postgresql.conf
-    grep -q "${data.aws_vpc.default.cidr_block}" $DB_CONF/pg_hba.conf || \
-      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" | sudo tee -a $DB_CONF/pg_hba.conf
-    sudo systemctl enable postgresql
-    sudo systemctl restart postgresql
-    sleep 5
-    sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='admin'" | grep -q 1 || \
-      sudo -u postgres psql -c "CREATE ROLE admin LOGIN PASSWORD 'admin123';"
-    sudo -u postgres createdb -O admin reportes_db || true
-  EOT
-
-  tags = merge(local.common_tags, {
-    Name    = "${var.project_prefix}-postgres-reportes"
-    Role    = "database"
-    Service = "reportes"
+    Name = "${var.project_prefix}-postgres"
+    Role = "database"
   })
 }
 
@@ -577,7 +489,7 @@ resource "aws_instance" "manejador_usuarios" {
 
   # Depends on all infra - user_data waits with nc before starting the service
   depends_on = [
-    aws_instance.postgres_usuarios,
+    aws_db_instance.main,
     aws_instance.redis,
     aws_instance.rabbitmq,
     aws_instance.manejador_cloud,
@@ -590,11 +502,11 @@ resource "aws_instance" "manejador_usuarios" {
 
     # Environment - mirrors docker-compose env vars exactly
     sudo tee /etc/environment <<ENV
-    DATABASE_HOST=${aws_instance.postgres_usuarios.private_ip}
+    DATABASE_HOST=${aws_db_instance.main.address}
     DATABASE_PORT=5432
     DATABASE_NAME=usuarios_db
-    DATABASE_USER=admin
-    DATABASE_PASSWORD=admin123
+    DATABASE_USER=usuarios_user
+    DATABASE_PASSWORD=Usuarios_2024!
     REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/0
     RABBITMQ_URL=amqp://bite:bite_pass@${aws_instance.rabbitmq.private_ip}:5672/bite_vhost
     RESOURCE_SERVICE_URL=http://${aws_instance.manejador_cloud.private_ip}:8002
@@ -604,11 +516,11 @@ resource "aws_instance" "manejador_usuarios" {
     EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
     ENV
 
-    export DATABASE_HOST=${aws_instance.postgres_usuarios.private_ip}
+    export DATABASE_HOST=${aws_db_instance.main.address}
     export DATABASE_PORT=5432
     export DATABASE_NAME=usuarios_db
-    export DATABASE_USER=admin
-    export DATABASE_PASSWORD=admin123
+    export DATABASE_USER=usuarios_user
+    export DATABASE_PASSWORD='Usuarios_2024!'
     export REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/0
     export RABBITMQ_URL=amqp://bite:bite_pass@${aws_instance.rabbitmq.private_ip}:5672/bite_vhost
     export RESOURCE_SERVICE_URL=http://${aws_instance.manejador_cloud.private_ip}:8002
@@ -616,13 +528,23 @@ resource "aws_instance" "manejador_usuarios" {
     export DEBUG=True
     export SECRET_KEY=bite-terraform-secret-key
 
+    sudo apt-get install -y postgresql-client
+
     ${local.git_bootstrap}
 
-    # Wait for dependencies
-    until nc -z ${aws_instance.postgres_usuarios.private_ip} 5432; do sleep 5; done
+    # Wait for RDS and other dependencies
+    until nc -z ${aws_db_instance.main.address} 5432; do sleep 5; done
     until nc -z ${aws_instance.redis.private_ip} 6379; do sleep 5; done
     until nc -z ${aws_instance.rabbitmq.private_ip} 5672; do sleep 5; done
     until nc -z ${aws_instance.manejador_cloud.private_ip} 8002; do sleep 5; done
+
+    # Create per-service DB and user using master credentials
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "CREATE DATABASE usuarios_db;" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "CREATE USER usuarios_user WITH PASSWORD 'Usuarios_2024!';" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "GRANT ALL PRIVILEGES ON DATABASE usuarios_db TO usuarios_user;" || true
 
     cd ${local.repo_dir}/manejador_usuarios
     sudo python3 -m pip install -r requirements.txt
@@ -652,7 +574,7 @@ resource "aws_instance" "manejador_cloud" {
   }
 
   depends_on = [
-    aws_instance.postgres_cloud,
+    aws_db_instance.main,
     aws_instance.redis,
   ]
 
@@ -662,31 +584,40 @@ resource "aws_instance" "manejador_cloud" {
     export DEBIAN_FRONTEND=noninteractive
 
     sudo tee /etc/environment <<ENV
-    DATABASE_HOST=${aws_instance.postgres_cloud.private_ip}
+    DATABASE_HOST=${aws_db_instance.main.address}
     DATABASE_PORT=5432
     DATABASE_NAME=cloud_db
-    DATABASE_USER=admin
-    DATABASE_PASSWORD=admin123
+    DATABASE_USER=cloud_user
+    DATABASE_PASSWORD=Cloud_2024!
     REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/1
     ALLOWED_HOSTS=*
     DEBUG=True
     SECRET_KEY=bite-terraform-secret-key
     ENV
 
-    export DATABASE_HOST=${aws_instance.postgres_cloud.private_ip}
+    export DATABASE_HOST=${aws_db_instance.main.address}
     export DATABASE_PORT=5432
     export DATABASE_NAME=cloud_db
-    export DATABASE_USER=admin
-    export DATABASE_PASSWORD=admin123
+    export DATABASE_USER=cloud_user
+    export DATABASE_PASSWORD='Cloud_2024!'
     export REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/1
     export ALLOWED_HOSTS=*
     export DEBUG=True
     export SECRET_KEY=bite-terraform-secret-key
 
+    sudo apt-get install -y postgresql-client
+
     ${local.git_bootstrap}
 
-    until nc -z ${aws_instance.postgres_cloud.private_ip} 5432; do sleep 5; done
+    until nc -z ${aws_db_instance.main.address} 5432; do sleep 5; done
     until nc -z ${aws_instance.redis.private_ip} 6379; do sleep 5; done
+
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "CREATE DATABASE cloud_db;" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "CREATE USER cloud_user WITH PASSWORD 'Cloud_2024!';" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "GRANT ALL PRIVILEGES ON DATABASE cloud_db TO cloud_user;" || true
 
     cd ${local.repo_dir}/manejador_cloud
     sudo python3 -m pip install -r requirements.txt
@@ -717,7 +648,7 @@ resource "aws_instance" "manejador_reportes" {
   }
 
   depends_on = [
-    aws_instance.postgres_reportes,
+    aws_db_instance.main,
     aws_instance.redis,
     aws_instance.rabbitmq,
   ]
@@ -728,11 +659,11 @@ resource "aws_instance" "manejador_reportes" {
     export DEBIAN_FRONTEND=noninteractive
 
     sudo tee /etc/environment <<ENV
-    DATABASE_HOST=${aws_instance.postgres_reportes.private_ip}
+    DATABASE_HOST=${aws_db_instance.main.address}
     DATABASE_PORT=5432
     DATABASE_NAME=reportes_db
-    DATABASE_USER=admin
-    DATABASE_PASSWORD=admin123
+    DATABASE_USER=reportes_user
+    DATABASE_PASSWORD=Reportes_2024!
     REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/2
     CELERY_RESULT_BACKEND=redis://${aws_instance.redis.private_ip}:6379/3
     RABBITMQ_URL=amqp://bite:bite_pass@${aws_instance.rabbitmq.private_ip}:5672/bite_vhost
@@ -743,11 +674,11 @@ resource "aws_instance" "manejador_reportes" {
     EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
     ENV
 
-    export DATABASE_HOST=${aws_instance.postgres_reportes.private_ip}
+    export DATABASE_HOST=${aws_db_instance.main.address}
     export DATABASE_PORT=5432
     export DATABASE_NAME=reportes_db
-    export DATABASE_USER=admin
-    export DATABASE_PASSWORD=admin123
+    export DATABASE_USER=reportes_user
+    export DATABASE_PASSWORD='Reportes_2024!'
     export REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/2
     export CELERY_RESULT_BACKEND=redis://${aws_instance.redis.private_ip}:6379/3
     export RABBITMQ_URL=amqp://bite:bite_pass@${aws_instance.rabbitmq.private_ip}:5672/bite_vhost
@@ -756,11 +687,20 @@ resource "aws_instance" "manejador_reportes" {
     export DEBUG=True
     export SECRET_KEY=bite-terraform-secret-key
 
+    sudo apt-get install -y postgresql-client
+
     ${local.git_bootstrap}
 
-    until nc -z ${aws_instance.postgres_reportes.private_ip} 5432; do sleep 5; done
+    until nc -z ${aws_db_instance.main.address} 5432; do sleep 5; done
     until nc -z ${aws_instance.redis.private_ip} 6379; do sleep 5; done
     until nc -z ${aws_instance.rabbitmq.private_ip} 5672; do sleep 5; done
+
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "CREATE DATABASE reportes_db;" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "CREATE USER reportes_user WITH PASSWORD 'Reportes_2024!';" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "GRANT ALL PRIVILEGES ON DATABASE reportes_db TO reportes_user;" || true
 
     cd ${local.repo_dir}/manejador_reportes
     sudo python3 -m pip install -r requirements.txt
@@ -798,9 +738,10 @@ resource "aws_instance" "worker_pool" {
   }
 
   depends_on = [
-    aws_instance.postgres_reportes,
+    aws_db_instance.main,
     aws_instance.redis,
     aws_instance.rabbitmq,
+    aws_instance.manejador_reportes,
   ]
 
   user_data = <<-EOT
@@ -809,11 +750,11 @@ resource "aws_instance" "worker_pool" {
     export DEBIAN_FRONTEND=noninteractive
 
     sudo tee /etc/environment <<ENV
-    DATABASE_HOST=${aws_instance.postgres_reportes.private_ip}
+    DATABASE_HOST=${aws_db_instance.main.address}
     DATABASE_PORT=5432
     DATABASE_NAME=reportes_db
-    DATABASE_USER=admin
-    DATABASE_PASSWORD=admin123
+    DATABASE_USER=reportes_user
+    DATABASE_PASSWORD=Reportes_2024!
     REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/2
     CELERY_RESULT_BACKEND=redis://${aws_instance.redis.private_ip}:6379/3
     RABBITMQ_URL=amqp://bite:bite_pass@${aws_instance.rabbitmq.private_ip}:5672/bite_vhost
@@ -823,11 +764,11 @@ resource "aws_instance" "worker_pool" {
     SECRET_KEY=bite-terraform-secret-key
     ENV
 
-    export DATABASE_HOST=${aws_instance.postgres_reportes.private_ip}
+    export DATABASE_HOST=${aws_db_instance.main.address}
     export DATABASE_PORT=5432
     export DATABASE_NAME=reportes_db
-    export DATABASE_USER=admin
-    export DATABASE_PASSWORD=admin123
+    export DATABASE_USER=reportes_user
+    export DATABASE_PASSWORD='Reportes_2024!'
     export REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/2
     export CELERY_RESULT_BACKEND=redis://${aws_instance.redis.private_ip}:6379/3
     export RABBITMQ_URL=amqp://bite:bite_pass@${aws_instance.rabbitmq.private_ip}:5672/bite_vhost
@@ -838,7 +779,7 @@ resource "aws_instance" "worker_pool" {
 
     ${local.git_bootstrap}
 
-    until nc -z ${aws_instance.postgres_reportes.private_ip} 5432; do sleep 5; done
+    until nc -z ${aws_db_instance.main.address} 5432; do sleep 5; done
     until nc -z ${aws_instance.redis.private_ip} 6379; do sleep 5; done
     until nc -z ${aws_instance.rabbitmq.private_ip} 5672; do sleep 5; done
 
@@ -1054,6 +995,16 @@ resource "aws_cognito_user_pool" "bite" {
     }
   }
 
+  schema {
+    attribute_data_type = "String"
+    name                = "rol"
+    mutable             = true
+    string_attribute_constraints {
+      min_length = 4
+      max_length = 10
+    }
+  }
+
   tags = merge(local.common_tags, { Name = "${var.project_prefix}-user-pool" })
 }
 
@@ -1078,13 +1029,13 @@ resource "aws_cognito_user_pool_client" "bite_spa" {
 #     --user-pool-id <user_pool_id> \
 #     --username empresa_a@bite.co \
 #     --temporary-password BiteCo2024! \
-#     --user-attributes Name=email,Value=empresa_a@bite.co Name=custom:empresa_id,Value=550e8400-e29b-41d4-a716-446655440001
+#     --user-attributes Name=email,Value=empresa_a@bite.co Name=custom:empresa_id,Value=550e8400-e29b-41d4-a716-446655440001 Name=custom:rol,Value=ADMIN
 #
 #   aws cognito-idp admin-create-user \
 #     --user-pool-id <user_pool_id> \
 #     --username empresa_b@bite.co \
 #     --temporary-password BiteCo2024! \
-#     --user-attributes Name=email,Value=empresa_b@bite.co Name=custom:empresa_id,Value=550e8400-e29b-41d4-a716-446655440002
+#     --user-attributes Name=email,Value=empresa_b@bite.co Name=custom:empresa_id,Value=550e8400-e29b-41d4-a716-446655440002 Name=custom:rol,Value=MANAGER
 
 # -----------------------------------------------------------------------------
 # SECURITY GROUP FOR AUTH SERVICES
@@ -1139,48 +1090,6 @@ resource "aws_security_group" "auth" {
 }
 
 # -----------------------------------------------------------------------------
-# POSTGRES SEGURIDAD — shared DB for autenticacion + seguridad services
-# -----------------------------------------------------------------------------
-
-resource "aws_instance" "postgres_seguridad" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.instance_type_db
-  subnet_id                   = element(tolist(data.aws_subnets.default.ids), 0)
-  associate_public_ip_address = true
-  vpc_security_group_ids      = [aws_security_group.db.id, aws_security_group.ssh.id]
-
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-  }
-
-  user_data = <<-EOT
-    #!/bin/bash
-    set -euxo pipefail
-    export DEBIAN_FRONTEND=noninteractive
-    sudo apt-get update -y
-    sudo apt-get install -y postgresql postgresql-contrib
-    PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n 1)
-    DB_CONF=/etc/postgresql/$PG_VERSION/main
-    echo "listen_addresses = '*'" | sudo tee -a $DB_CONF/postgresql.conf
-    grep -q "${data.aws_vpc.default.cidr_block}" $DB_CONF/pg_hba.conf || \
-      echo "host all all ${data.aws_vpc.default.cidr_block} scram-sha-256" | sudo tee -a $DB_CONF/pg_hba.conf
-    sudo systemctl enable postgresql
-    sudo systemctl restart postgresql
-    sleep 5
-    sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='admin'" | grep -q 1 || \
-      sudo -u postgres psql -c "CREATE ROLE admin LOGIN PASSWORD 'admin123';"
-    sudo -u postgres createdb -O admin seguridad_db || true
-  EOT
-
-  tags = merge(local.common_tags, {
-    Name    = "${var.project_prefix}-postgres-seguridad"
-    Role    = "database"
-    Service = "seguridad"
-  })
-}
-
-# -----------------------------------------------------------------------------
 # MANEJADOR_AUTENTICACION — port 8004
 # -----------------------------------------------------------------------------
 
@@ -1197,7 +1106,7 @@ resource "aws_instance" "manejador_autenticacion" {
   }
 
   depends_on = [
-    aws_instance.postgres_seguridad,
+    aws_db_instance.main,
     aws_cognito_user_pool.bite,
   ]
 
@@ -1207,11 +1116,11 @@ resource "aws_instance" "manejador_autenticacion" {
     export DEBIAN_FRONTEND=noninteractive
 
     sudo tee /etc/environment <<ENV
-    DATABASE_HOST=${aws_instance.postgres_seguridad.private_ip}
+    DATABASE_HOST=${aws_db_instance.main.address}
     DATABASE_PORT=5432
     DATABASE_NAME=seguridad_db
-    DATABASE_USER=admin
-    DATABASE_PASSWORD=admin123
+    DATABASE_USER=seguridad_user
+    DATABASE_PASSWORD=Seguridad_2024!
     COGNITO_USER_POOL_ID=${aws_cognito_user_pool.bite.id}
     COGNITO_CLIENT_ID=${aws_cognito_user_pool_client.bite_spa.id}
     COGNITO_REGION=${var.region}
@@ -1221,11 +1130,11 @@ resource "aws_instance" "manejador_autenticacion" {
     SECRET_KEY=bite-terraform-secret-key
     ENV
 
-    export DATABASE_HOST=${aws_instance.postgres_seguridad.private_ip}
+    export DATABASE_HOST=${aws_db_instance.main.address}
     export DATABASE_PORT=5432
     export DATABASE_NAME=seguridad_db
-    export DATABASE_USER=admin
-    export DATABASE_PASSWORD=admin123
+    export DATABASE_USER=seguridad_user
+    export DATABASE_PASSWORD='Seguridad_2024!'
     export COGNITO_USER_POOL_ID=${aws_cognito_user_pool.bite.id}
     export COGNITO_CLIENT_ID=${aws_cognito_user_pool_client.bite_spa.id}
     export COGNITO_REGION=${var.region}
@@ -1234,9 +1143,18 @@ resource "aws_instance" "manejador_autenticacion" {
     export DEBUG=False
     export SECRET_KEY=bite-terraform-secret-key
 
+    sudo apt-get install -y postgresql-client
+
     ${local.git_bootstrap}
 
-    until nc -z ${aws_instance.postgres_seguridad.private_ip} 5432; do sleep 5; done
+    until nc -z ${aws_db_instance.main.address} 5432; do sleep 5; done
+
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "CREATE DATABASE seguridad_db;" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "CREATE USER seguridad_user WITH PASSWORD 'Seguridad_2024!';" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
+      -c "GRANT ALL PRIVILEGES ON DATABASE seguridad_db TO seguridad_user;" || true
 
     cd ${local.repo_dir}/manejador_autenticacion
     sudo python3 -m pip install -r requirements.txt
@@ -1269,7 +1187,7 @@ resource "aws_instance" "manejador_seguridad" {
   }
 
   depends_on = [
-    aws_instance.postgres_seguridad,
+    aws_db_instance.main,
     aws_instance.manejador_autenticacion,
   ]
 
@@ -1279,11 +1197,11 @@ resource "aws_instance" "manejador_seguridad" {
     export DEBIAN_FRONTEND=noninteractive
 
     sudo tee /etc/environment <<ENV
-    DATABASE_HOST=${aws_instance.postgres_seguridad.private_ip}
+    DATABASE_HOST=${aws_db_instance.main.address}
     DATABASE_PORT=5432
     DATABASE_NAME=seguridad_db
-    DATABASE_USER=admin
-    DATABASE_PASSWORD=admin123
+    DATABASE_USER=seguridad_user
+    DATABASE_PASSWORD=Seguridad_2024!
     AUTH_SERVICE_URL=http://${aws_instance.manejador_autenticacion.private_ip}:8004
     AUTH_SERVICE_TIMEOUT=2
     LOCAL_JWT_SECRET=bite-local-jwt-secret
@@ -1295,11 +1213,11 @@ resource "aws_instance" "manejador_seguridad" {
     SECRET_KEY=bite-terraform-secret-key
     ENV
 
-    export DATABASE_HOST=${aws_instance.postgres_seguridad.private_ip}
+    export DATABASE_HOST=${aws_db_instance.main.address}
     export DATABASE_PORT=5432
     export DATABASE_NAME=seguridad_db
-    export DATABASE_USER=admin
-    export DATABASE_PASSWORD=admin123
+    export DATABASE_USER=seguridad_user
+    export DATABASE_PASSWORD='Seguridad_2024!'
     export AUTH_SERVICE_URL=http://${aws_instance.manejador_autenticacion.private_ip}:8004
     export AUTH_SERVICE_TIMEOUT=2
     export LOCAL_JWT_SECRET=bite-local-jwt-secret
@@ -1310,7 +1228,7 @@ resource "aws_instance" "manejador_seguridad" {
 
     ${local.git_bootstrap}
 
-    until nc -z ${aws_instance.postgres_seguridad.private_ip} 5432; do sleep 5; done
+    until nc -z ${aws_db_instance.main.address} 5432; do sleep 5; done
     until nc -z ${aws_instance.manejador_autenticacion.private_ip} 8004; do sleep 5; done
 
     cd ${local.repo_dir}/manejador_seguridad
@@ -1361,6 +1279,49 @@ resource "aws_s3_bucket_policy" "frontend_public" {
     }]
   })
   depends_on = [aws_s3_bucket_public_access_block.frontend]
+}
+
+# Auto-upload frontend files — config.js is generated from template with live ALB DNS.
+# Terraform re-uploads files whenever their content changes (etag tracking).
+
+resource "aws_s3_object" "frontend_config" {
+  bucket       = aws_s3_bucket.frontend.id
+  key          = "config.js"
+  content_type = "application/javascript"
+  content = templatefile("${path.module}/frontend/config.js.tpl", {
+    alb_dns = aws_lb.main.dns_name
+  })
+  depends_on = [
+    aws_s3_bucket_public_access_block.frontend,
+    aws_s3_bucket_policy.frontend_public,
+  ]
+}
+
+resource "aws_s3_object" "frontend_index" {
+  bucket       = aws_s3_bucket.frontend.id
+  key          = "index.html"
+  source       = "${path.module}/frontend/index.html"
+  content_type = "text/html"
+  etag         = filemd5("${path.module}/frontend/index.html")
+  depends_on   = [aws_s3_bucket_public_access_block.frontend, aws_s3_bucket_policy.frontend_public]
+}
+
+resource "aws_s3_object" "frontend_dashboard" {
+  bucket       = aws_s3_bucket.frontend.id
+  key          = "dashboard.html"
+  source       = "${path.module}/frontend/dashboard.html"
+  content_type = "text/html"
+  etag         = filemd5("${path.module}/frontend/dashboard.html")
+  depends_on   = [aws_s3_bucket_public_access_block.frontend, aws_s3_bucket_policy.frontend_public]
+}
+
+resource "aws_s3_object" "frontend_metrics" {
+  bucket       = aws_s3_bucket.frontend.id
+  key          = "metrics.html"
+  source       = "${path.module}/frontend/metrics.html"
+  content_type = "text/html"
+  etag         = filemd5("${path.module}/frontend/metrics.html")
+  depends_on   = [aws_s3_bucket_public_access_block.frontend, aws_s3_bucket_policy.frontend_public]
 }
 
 # -----------------------------------------------------------------------------
@@ -1596,16 +1557,9 @@ output "rabbitmq_management_url" {
   value       = "http://${aws_instance.rabbitmq.private_ip}:15672"
 }
 
-output "postgres_usuarios_private_ip" {
-  value = aws_instance.postgres_usuarios.private_ip
-}
-
-output "postgres_cloud_private_ip" {
-  value = aws_instance.postgres_cloud.private_ip
-}
-
-output "postgres_reportes_private_ip" {
-  value = aws_instance.postgres_reportes.private_ip
+output "rds_endpoint" {
+  description = "RDS PostgreSQL endpoint — all microservices connect here"
+  value       = aws_db_instance.main.address
 }
 
 output "worker_public_ips" {
@@ -1638,10 +1592,6 @@ output "manejador_seguridad_public_ip" {
   value       = aws_instance.manejador_seguridad.public_ip
 }
 
-output "postgres_seguridad_private_ip" {
-  description = "postgres_seguridad private IP — VPC-internal only"
-  value       = aws_instance.postgres_seguridad.private_ip
-}
 
 output "alb_auth_url" {
   description = "ASR2/ASR3 auth endpoint via ALB"
