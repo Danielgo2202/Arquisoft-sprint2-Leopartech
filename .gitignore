@@ -29,6 +29,9 @@ experiments/results/
 # Docker
 .docker/
 
+# Generated files (built by Terraform from templates)
+frontend/config.js
+
 # IDE
 .idea/
 .vscode/

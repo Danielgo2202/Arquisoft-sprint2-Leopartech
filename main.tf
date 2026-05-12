@@ -59,12 +59,6 @@ variable "instance_type_app" {
   default     = "t3.small"
 }
 
-variable "instance_type_db" {
-  description = "EC2 type for PostgreSQL servers (one per microservice)"
-  type        = string
-  default     = "t3.micro"
-}
-
 variable "instance_type_support" {
   description = "EC2 type for shared infrastructure: Redis and RabbitMQ"
   type        = string
@@ -493,6 +487,7 @@ resource "aws_instance" "manejador_usuarios" {
     aws_instance.redis,
     aws_instance.rabbitmq,
     aws_instance.manejador_cloud,
+    aws_instance.manejador_autenticacion,
   ]
 
   user_data = <<-EOT
@@ -541,6 +536,7 @@ resource "aws_instance" "manejador_usuarios" {
     until nc -z ${aws_instance.redis.private_ip} 6379; do sleep 5; done
     until nc -z ${aws_instance.rabbitmq.private_ip} 5672; do sleep 5; done
     until nc -z ${aws_instance.manejador_cloud.private_ip} 8002; do sleep 5; done
+    until nc -z ${aws_instance.manejador_autenticacion.private_ip} 8004; do sleep 5; done
 
     # Create per-service DB and user using master credentials
     PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
@@ -555,7 +551,7 @@ resource "aws_instance" "manejador_usuarios" {
     cd ${local.repo_dir}/manejador_usuarios
     sudo python3 -m pip install -r requirements.txt
     python3 manage.py migrate --noinput || true
-    python3 manage.py dbshell < ../database/seeds/seed_users_company.sql || true
+    python3 manage.py seed_usuarios_data || true
     nohup python3 manage.py runserver 0.0.0.0:8001 > /var/log/manejador_usuarios.log 2>&1 &
   EOT
 
@@ -715,7 +711,7 @@ resource "aws_instance" "manejador_reportes" {
     cd ${local.repo_dir}/manejador_reportes
     sudo python3 -m pip install -r requirements.txt
     python3 manage.py migrate --noinput || true
-    python3 manage.py dbshell < ../database/seeds/seed_reports.sql || true
+    python3 manage.py seed_reportes_data || true
     nohup python3 manage.py runserver 0.0.0.0:8003 > /var/log/manejador_reportes.log 2>&1 &
   EOT
 
@@ -949,8 +945,12 @@ resource "aws_lb_listener_rule" "events" {
   priority     = 10
 
   action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.reportes.arn
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 
   condition {
@@ -965,8 +965,12 @@ resource "aws_lb_listener_rule" "reports" {
   priority     = 20
 
   action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.reportes.arn
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 
   condition {
@@ -1234,6 +1238,8 @@ resource "aws_instance" "manejador_seguridad" {
     export AUTH_SERVICE_TIMEOUT=2
     export LOCAL_JWT_SECRET=bite-local-jwt-secret
     export COGNITO_USER_POOL_ID=${aws_cognito_user_pool.bite.id}
+    export COGNITO_CLIENT_ID=${aws_cognito_user_pool_client.bite_spa.id}
+    export COGNITO_REGION=${var.region}
     export ALLOWED_HOSTS=*
     export DEBUG=False
     export SECRET_KEY=bite-terraform-secret-key
@@ -1477,58 +1483,37 @@ resource "aws_lb_listener_rule" "https_usuarios" {
   }
 }
 
-# Also expose manejador_usuarios SG to allow 8001 traffic from VPC (for middleware inter-service calls)
-# The existing app SG already allows this.
+resource "aws_lb_listener_rule" "https_events" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 15
 
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.reportes.arn
+  }
 
-# -----------------------------------------------------------------------------
-# HTTPS CONFIGURATION (commented out — requires domain + ACM certificate)
-# To enable HTTPS:
-# 1. Register a domain in Route 53 or your DNS provider
-# 2. Request a certificate in AWS Certificate Manager (ACM) for your domain
-# 3. Uncomment the resources below and replace "your-domain.com"
-#
-# resource "aws_acm_certificate" "bite" {
-#   domain_name       = "your-domain.com"
-#   validation_method = "DNS"
-#   tags = local.common_tags
-# }
-#
-# resource "aws_acm_certificate_validation" "bite" {
-#   certificate_arn         = aws_acm_certificate.bite.arn
-#   validation_record_fqdns = [for r in aws_acm_certificate.bite.domain_validation_options : r.resource_record_name]
-# }
-#
-# resource "aws_lb_listener" "https" {
-#   load_balancer_arn = aws_lb.main.arn
-#   port              = 443
-#   protocol          = "HTTPS"
-#   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-#   certificate_arn   = aws_acm_certificate.bite.arn
-#
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.usuarios.arn
-#   }
-# }
-#
-# resource "aws_lb_listener" "http_redirect" {
-#   load_balancer_arn = aws_lb.main.arn
-#   port              = 80
-#   protocol          = "HTTP"
-#
-#   default_action {
-#     type = "redirect"
-#     redirect {
-#       port        = "443"
-#       protocol    = "HTTPS"
-#       status_code = "HTTP_301"
-#     }
-#   }
-# }
-#
-# Also update aws_security_group.alb to add ingress on port 443.
-# -----------------------------------------------------------------------------
+  condition {
+    path_pattern {
+      values = ["/events/*", "/events"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "https_reports" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 20
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.reportes.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/reports", "/reports/*"]
+    }
+  }
+}
 
 # -----------------------------------------------------------------------------
 # OUTPUTS - use these in JMeter HTTP Request samplers
@@ -1540,13 +1525,13 @@ output "alb_dns_name" {
 }
 
 output "alb_usuarios_url" {
-  description = "ASR16 latency experiment endpoint"
-  value       = "http://${aws_lb.main.dns_name}/projects"
+  description = "ASR16 latency experiment endpoint (HTTPS)"
+  value       = "https://${aws_lb.main.dns_name}/projects"
 }
 
 output "alb_reportes_url" {
-  description = "ASR17 scalability experiment endpoint"
-  value       = "http://${aws_lb.main.dns_name}/events/batch"
+  description = "ASR17 scalability experiment endpoint (HTTPS)"
+  value       = "https://${aws_lb.main.dns_name}/events/batch"
 }
 
 output "manejador_cloud_public_ip" {
