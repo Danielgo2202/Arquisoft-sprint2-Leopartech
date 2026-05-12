@@ -1,0 +1,364 @@
+{
+  "info": {
+    "name": "ASR3 – Seguridad (Confidencialidad) – Aislamiento por Tenant",
+    "description": "Experiment to validate 100% cross-tenant access blocking in BITE.co microservices platform.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://bite2-alb-2113734082.us-east-1.elb.amazonaws.com",
+      "type": "string"
+    },
+    {
+      "key": "token_a",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_b",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Setup – Login empresa_a (ADMIN)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Login empresa_a returns 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response contains id_token', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('id_token');",
+              "    pm.collectionVariables.set('token_a', json.id_token);",
+              "    console.log('TOKEN_A (id_token) stored successfully');",
+              "});",
+              "",
+              "pm.test('Role is ADMIN', function () {",
+              "    pm.expect(pm.response.json().rol).to.eql('ADMIN');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"empresa_a@bite.co\", \"password\": \"BiteCo2024!\"}"
+        },
+        "url": "{{base_url}}/auth/login"
+      }
+    },
+    {
+      "name": "2. Setup – Login empresa_b (MANAGER)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Login empresa_b returns 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response contains id_token', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('id_token');",
+              "    pm.collectionVariables.set('token_b', json.id_token);",
+              "    console.log('TOKEN_B (id_token) stored successfully');",
+              "});",
+              "",
+              "pm.test('Role is MANAGER', function () {",
+              "    pm.expect(pm.response.json().rol).to.eql('MANAGER');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"empresa_b@bite.co\", \"password\": \"BiteCo2024!\"}"
+        },
+        "url": "{{base_url}}/auth/login"
+      }
+    },
+    {
+      "name": "3. Valid – empresa_a accesses own projects",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('[VALID] empresa_a gets 200 on own projects', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('[VALID] Response is an array', function () {",
+              "    pm.expect(pm.response.json()).to.be.an('array');",
+              "});",
+              "",
+              "pm.test('[VALID] All projects belong to empresa_a tenant', function () {",
+              "    var projects = pm.response.json();",
+              "    var empresa_a_id = '550e8400-e29b-41d4-a716-446655440001';",
+              "    projects.forEach(function(p) {",
+              "        if (p.empresa_id) {",
+              "            pm.expect(p.empresa_id).to.eql(empresa_a_id);",
+              "        }",
+              "    });",
+              "    console.log('empresa_a project count: ' + projects.length);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token_a}}" }
+        ],
+        "url": "{{base_url}}/projects"
+      }
+    },
+    {
+      "name": "4. Valid – empresa_b accesses own projects",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('[VALID] empresa_b gets 200 on own projects', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('[VALID] Response is an array', function () {",
+              "    pm.expect(pm.response.json()).to.be.an('array');",
+              "});",
+              "",
+              "pm.test('[VALID] All projects belong to empresa_b tenant', function () {",
+              "    var projects = pm.response.json();",
+              "    var empresa_b_id = '550e8400-e29b-41d4-a716-446655440002';",
+              "    projects.forEach(function(p) {",
+              "        if (p.empresa_id) {",
+              "            pm.expect(p.empresa_id).to.eql(empresa_b_id);",
+              "        }",
+              "    });",
+              "    console.log('empresa_b project count: ' + projects.length);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token_b}}" }
+        ],
+        "url": "{{base_url}}/projects"
+      }
+    },
+    {
+      "name": "5. Attack – No token (unauthenticated request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('[ATTACK] No token is blocked with 403', function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test('[ATTACK] Error message present', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('error');",
+              "    console.log('Blocked with: ' + json.error);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/projects"
+      }
+    },
+    {
+      "name": "6. Attack – Fake/forged token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('[ATTACK] Forged token is blocked with 403', function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test('[ATTACK] Error message present', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('error');",
+              "    console.log('Blocked with: ' + json.error);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer eyJhbGciOiJSUzI1NiJ9.FORGED_PAYLOAD.INVALID_SIGNATURE" }
+        ],
+        "url": "{{base_url}}/projects"
+      }
+    },
+    {
+      "name": "7. Attack – Corrupted token (1 char changed)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('[ATTACK] Corrupted token is blocked with 403', function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test('[ATTACK] Error message present', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('error');",
+              "    console.log('Blocked with: ' + json.error);",
+              "});",
+              "",
+              "// This simulates BurpSuite manually modifying a captured token",
+              "console.log('Simulates token tampering — one character changed in TOKEN_A');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_a}}X"
+          }
+        ],
+        "url": "{{base_url}}/projects"
+      }
+    },
+    {
+      "name": "8. Attack – empresa_a token cannot see empresa_b data",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('[ATTACK] TOKEN_A returns 200 but only empresa_a data', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('[ATTACK] No empresa_b data leaked into empresa_a response', function () {",
+              "    var projects = pm.response.json();",
+              "    var empresa_b_id = '550e8400-e29b-41d4-a716-446655440002';",
+              "    var leak = projects.filter(function(p) {",
+              "        return p.empresa_id === empresa_b_id;",
+              "    });",
+              "    pm.expect(leak.length).to.eql(0, 'Cross-tenant data leak detected!');",
+              "    console.log('No empresa_b records found in empresa_a response. Isolation verified.');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token_a}}" }
+        ],
+        "url": "{{base_url}}/projects"
+      }
+    },
+    {
+      "name": "9. Attack – empresa_b token cannot see empresa_a data",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('[ATTACK] TOKEN_B returns 200 but only empresa_b data', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('[ATTACK] No empresa_a data leaked into empresa_b response', function () {",
+              "    var projects = pm.response.json();",
+              "    var empresa_a_id = '550e8400-e29b-41d4-a716-446655440001';",
+              "    var leak = projects.filter(function(p) {",
+              "        return p.empresa_id === empresa_a_id;",
+              "    });",
+              "    pm.expect(leak.length).to.eql(0, 'Cross-tenant data leak detected!');",
+              "    console.log('No empresa_a records found in empresa_b response. Isolation verified.');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token_b}}" }
+        ],
+        "url": "{{base_url}}/projects"
+      }
+    },
+    {
+      "name": "10. Attack – Empty Authorization header",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('[ATTACK] Empty auth header is blocked with 403', function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test('[ATTACK] Error message present', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('error');",
+              "    console.log('Blocked with: ' + json.error);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "" }
+        ],
+        "url": "{{base_url}}/projects"
+      }
+    }
+  ]
+}

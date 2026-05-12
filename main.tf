@@ -510,6 +510,8 @@ resource "aws_instance" "manejador_usuarios" {
     REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/0
     RABBITMQ_URL=amqp://bite:bite_pass@${aws_instance.rabbitmq.private_ip}:5672/bite_vhost
     RESOURCE_SERVICE_URL=http://${aws_instance.manejador_cloud.private_ip}:8002
+    AUTH_SERVICE_URL=http://${aws_instance.manejador_autenticacion.private_ip}:8004
+    AUTH_SERVICE_TIMEOUT=10
     ALLOWED_HOSTS=*
     DEBUG=True
     SECRET_KEY=bite-terraform-secret-key
@@ -524,6 +526,8 @@ resource "aws_instance" "manejador_usuarios" {
     export REDIS_URL=redis://${aws_instance.redis.private_ip}:6379/0
     export RABBITMQ_URL=amqp://bite:bite_pass@${aws_instance.rabbitmq.private_ip}:5672/bite_vhost
     export RESOURCE_SERVICE_URL=http://${aws_instance.manejador_cloud.private_ip}:8002
+    export AUTH_SERVICE_URL=http://${aws_instance.manejador_autenticacion.private_ip}:8004
+    export AUTH_SERVICE_TIMEOUT=10
     export ALLOWED_HOSTS=*
     export DEBUG=True
     export SECRET_KEY=bite-terraform-secret-key
@@ -545,6 +549,8 @@ resource "aws_instance" "manejador_usuarios" {
       -c "CREATE USER usuarios_user WITH PASSWORD 'Usuarios_2024!';" || true
     PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
       -c "GRANT ALL PRIVILEGES ON DATABASE usuarios_db TO usuarios_user;" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d usuarios_db \
+      -c "GRANT ALL ON SCHEMA public TO usuarios_user;" || true
 
     cd ${local.repo_dir}/manejador_usuarios
     sudo python3 -m pip install -r requirements.txt
@@ -618,6 +624,8 @@ resource "aws_instance" "manejador_cloud" {
       -c "CREATE USER cloud_user WITH PASSWORD 'Cloud_2024!';" || true
     PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
       -c "GRANT ALL PRIVILEGES ON DATABASE cloud_db TO cloud_user;" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d cloud_db \
+      -c "GRANT ALL ON SCHEMA public TO cloud_user;" || true
 
     cd ${local.repo_dir}/manejador_cloud
     sudo python3 -m pip install -r requirements.txt
@@ -701,6 +709,8 @@ resource "aws_instance" "manejador_reportes" {
       -c "CREATE USER reportes_user WITH PASSWORD 'Reportes_2024!';" || true
     PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
       -c "GRANT ALL PRIVILEGES ON DATABASE reportes_db TO reportes_user;" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d reportes_db \
+      -c "GRANT ALL ON SCHEMA public TO reportes_user;" || true
 
     cd ${local.repo_dir}/manejador_reportes
     sudo python3 -m pip install -r requirements.txt
@@ -1155,6 +1165,8 @@ resource "aws_instance" "manejador_autenticacion" {
       -c "CREATE USER seguridad_user WITH PASSWORD 'Seguridad_2024!';" || true
     PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d bite_master \
       -c "GRANT ALL PRIVILEGES ON DATABASE seguridad_db TO seguridad_user;" || true
+    PGPASSWORD='Bite_Master_2024!' psql -h ${aws_db_instance.main.address} -U bite_master -d seguridad_db \
+      -c "GRANT ALL ON SCHEMA public TO seguridad_user;" || true
 
     cd ${local.repo_dir}/manejador_autenticacion
     sudo python3 -m pip install -r requirements.txt
