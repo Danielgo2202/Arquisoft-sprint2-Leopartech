@@ -438,7 +438,7 @@ class IntegrityLogView(APIView):
         serializer = VerificacionIntegridadSerializer(qs, many=True)
         return Response({
             'asr': 'ASR2 - Seguridad (Integridad)',
-            'total_registros': qs.count(),
+            'total_registros': len(qs),
             'registros': serializer.data,
         })
 
